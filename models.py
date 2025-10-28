@@ -44,3 +44,31 @@ class Finding:
             data['file'] = self.file
 
         return data
+
+@dataclass
+class OSVRequest:
+    name: str
+    ecosystem: str
+    version: str
+
+    def to_dict(self):
+        return {
+            'package': {
+                'name': self.name,
+                'ecosystem': self.ecosystem
+            },
+            'version': self.version
+        }
+
+@dataclass
+class OSVFinding:
+    package: str
+    version: str
+    cves: list[str]
+
+    def to_dict(self):
+        return {
+            'package': self.package,
+            'version': self.version,
+            'cves': self.cves
+        }
