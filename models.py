@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import Enum
-from dataclasses import asdict
+from typing import Optional
 
 
 class Severity(Enum):
@@ -15,6 +15,7 @@ class Confidence(Enum):
     LOW = "low"
 
 class Type(Enum):
+    SECRETS = "Hardcoded Secret"
     SQL_INJECTION = "SQL Injection"
 
 @dataclass
@@ -23,10 +24,20 @@ class Finding:
     line: int
     severity: Severity
     confidence: Confidence
+    snippet: Optional[str] = None
+    description: Optional[str] = None
 
     def to_dict(self):
-        data = asdict(self)
-        data['type'] = self.type.value
-        data['severity'] = self.severity.value
-        data['confidence'] = self.confidence.value
+        data = {
+            'type': self.type.value,
+            'line': self.line,
+            'severity': self.severity.value,
+            'confidence': self.confidence.value,
+        }
+
+        if self.snippet is not None:
+            data['snippet'] = self.snippet
+        if self.description is not None:
+            data['description'] = self.description
+
         return data
