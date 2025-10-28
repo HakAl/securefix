@@ -1,8 +1,7 @@
 import ast
 from models import Finding, Type, Severity, Confidence
+from sast.rules import SQL_EXECUTION_METHODS
 
-
-SQL_EXECUTION_METHODS = ['execute', 'executemany', 'executescript', 'read_sql', 'read_sql_query']
 
 class SQLiDetector(ast.NodeVisitor):
     def __init__(self):

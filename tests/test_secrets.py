@@ -1,4 +1,3 @@
-import pytest
 from sast.detectors.secrets import detect_secrets, SECRET_PATTERNS, LOW_CONFIDENCE_PATTERNS
 from models import Type, Severity, Confidence
 

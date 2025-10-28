@@ -26,6 +26,7 @@ class Finding:
     confidence: Confidence
     snippet: Optional[str] = None
     description: Optional[str] = None
+    file: Optional[str] = None
 
     def to_dict(self):
         data = {
@@ -39,5 +40,7 @@ class Finding:
             data['snippet'] = self.snippet
         if self.description is not None:
             data['description'] = self.description
+        if self.file is not None:
+            data['file'] = self.file
 
         return data
