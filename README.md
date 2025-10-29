@@ -82,11 +82,17 @@ echo "GOOGLE_API_KEY=your_key_here" > .env
 ### Basic Scanning
 
 ```bash
-# Scan for vulnerabilities
-python securefix.py scan path/to/code.py --output report.json
+# Scan a single file
+python securefix.py scan path/to/code.py
 
-# Include dependency scanning
-python securefix.py scan path/to/code.py --dependencies requirements.txt
+# Scan a directory
+python securefix.py scan src/
+
+# Scan with dependencies
+python securefix.py scan src/ --dependencies requirements.txt
+
+# Custom output file
+python securefix.py scan src/ -d requirements.txt -o my_report.json
 ```
 
 ### Remediation

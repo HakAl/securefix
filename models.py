@@ -1,4 +1,5 @@
-from dataclasses import asdict, dataclass
+from collections import Counter
+from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
@@ -71,4 +72,29 @@ class OSVFinding:
             'package': self.package,
             'version': self.version,
             'cves': self.cves
+        }
+
+@dataclass
+class ScanResult:
+    scan_timestamp: str
+    findings: list
+    cve_findings: list
+
+    def to_dict(self):
+        severity_counts = Counter(f.severity for f in self.findings)
+
+        return {
+            'summary': {
+                'total_findings': len(self.findings),
+                'total_cve_findings': len(self.cve_findings),
+                'by_severity': {
+                    'low': severity_counts.get(Severity.LOW, 0),
+                    'medium': severity_counts.get(Severity.MEDIUM, 0),
+                    'high': severity_counts.get(Severity.HIGH, 0),
+                    'critical': severity_counts.get(Severity.CRITICAL, 0)
+                },
+                'scan_timestamp': self.scan_timestamp,
+            },
+            'sast_findings': [f.to_dict() for f in self.findings],
+            'cve_findings': [c.to_dict() for c in self.cve_findings]
         }
