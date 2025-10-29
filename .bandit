@@ -1,0 +1,7 @@
+skips:
+  - B101  # assert_used - too noisy for test code
+
+exclude_dirs:
+  - /tests/
+  - /.venv/
+  - /venv/

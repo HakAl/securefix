@@ -65,7 +65,7 @@ pip install -r requirements.txt
 **Local Mode (Ollama)**:
 ```bash
 # Install Ollama from ollama.ai
-ollama pull phi3:mini  # or llama3.2:3b for speed
+ollama pull llama3.2:3b  # for speed, or something like for more accuracy llama3.1:8b 
 ```
 
 **Cloud Mode (Google Gen AI)**:
@@ -142,12 +142,12 @@ python securefix.py fix report.json --severity-filter
 ```json
 {
   "summary": {
-    "total_findings": 31,
-    "total_cve_findings": 0,
+    "total_findings": 1,
+    "total_cve_findings": 1,
     "by_severity": {
-      "low": 14,
-      "medium": 15,
-      "high": 2,
+      "low": 0,
+      "medium": 0,
+      "high": 1,
       "critical": 0
     },
     "scan_timestamp": "2025-10-29T16:25:28.791091"

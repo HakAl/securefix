@@ -6,7 +6,7 @@ from models import Finding
 from sast.bandit_mapper import convert_bandit_result
 
 
-def scan(path: str) -> List[Finding]:
+def scan(path: str, severity: str = "medium", confidence: str = "medium") -> List[Finding]:
     """
     Runs the Bandit scanner on the given path (file or directory).
     Bandit handles both automatically with -r flag.
@@ -17,6 +17,8 @@ def scan(path: str) -> List[Finding]:
         "bandit",
         "-r", path,
         "-f", "json",
+        "--severity-level", severity,
+        "--confidence-level", confidence,
     ]
 
     try:
