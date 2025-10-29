@@ -95,12 +95,22 @@ class TestScanCommand:
 
     def test_scan_directory(self, runner, tmp_path):
         """Should scan all Python files in a directory"""
-        # Create multiple files with more obvious vulnerabilities
+        # Create multiple files with vulnerabilities that Bandit will definitely catch
+        # Use pickle (B301) which is reliably detected
         file1 = tmp_path / "file1.py"
-        file1.write_text('password = "hardcoded_password_123"')  # More obvious secret
+        file1.write_text(textwrap.dedent("""
+            import pickle
 
+            def load_data(data):
+                return pickle.loads(data)
+        """).strip())
+
+        # Use eval (B307) which is reliably detected
         file2 = tmp_path / "file2.py"
-        file2.write_text('import os\nos.system("ls -la")')  # Command injection
+        file2.write_text(textwrap.dedent("""
+            def run_code(code):
+                return eval(code)
+        """).strip())
 
         output_path = tmp_path / "report.json"
 
@@ -115,7 +125,7 @@ class TestScanCommand:
         with open(output_path) as f:
             report = json.load(f)
 
-        # Should find at least 1 vulnerability (may not find both)
+        # Should find at least 1 vulnerability (pickle or eval)
         assert report['summary']['total_findings'] >= 1
 
     def test_scan_with_dependencies(self, runner, temp_vulnerable_file, temp_requirements, tmp_path):

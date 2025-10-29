@@ -112,9 +112,19 @@ class TestBanditScanner:
         with patch('sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success) as mock_run:
             scan("/my/test/path")
 
-        # Check the command that was called
+        # Check the command that was called - include the additional parameters
         called_command = mock_run.call_args[0][0]
-        assert called_command == ["bandit", "-r", "/my/test/path", "-f", "json"]
+        assert called_command == [
+            "bandit",
+            "-r",
+            "/my/test/path",
+            "-f",
+            "json",
+            "--severity-level",
+            "medium",
+            "--confidence-level",
+            "medium"
+        ]
         assert mock_run.call_args[1]['capture_output'] is True
         assert mock_run.call_args[1]['text'] is True
 
