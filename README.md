@@ -7,7 +7,7 @@ SecureFix combines deterministic vulnerability detection with context-aware fix 
 
 SecureFix bridges rule-based precision and AI-driven guidance through two core capabilities:
 
-- **Static Analysis Engine**: Deterministic detection of SQL injection, hardcoded secrets, and dependency vulnerabilities using AST analysis and CVE databases
+- **Static Analysis Engine**: Deterministic detection of SQL injection, hardcoded secrets, XSS, CVE databases, and many more thanks to Bandit!
 - **Smart Remediation**: RAG-powered fix generation that retrieves relevant security patterns and synthesizes contextual remediation guidance
 
 ## Features
@@ -17,8 +17,8 @@ SecureFix bridges rule-based precision and AI-driven guidance through two core c
 - **Code-level vulnerabilities** via Abstract Syntax Tree (AST) analysis
   - SQL injection through unsafe query construction
   - Hardcoded secrets (API keys, tokens, credentials)
+  - See: sast/bandit_mapper.py for full list
 - **Dependency vulnerabilities** via CVE scanning
-  - Hardcoded high-confidence vulnerabilities
   - Real-time lookup via OSV database API
 
 ### Remediation Capabilities
@@ -33,10 +33,7 @@ SecureFix bridges rule-based precision and AI-driven guidance through two core c
 ```
 securefix/
 ├── sast/
-│   ├── scanner.py              # AST-based code analysis
-│   ├── detectors/
-│   │   ├── sql_injection.py    # SQLi detection via data flow analysis
-│   │   ├── secrets.py          # Pattern-based secret detection
+│   ├── bandit_scanner.py              # AST-based code analysis
 ├── cve/
 │   ├── scanner.py              # Dependency vulnerability scanning
 │   ├── db.py                   # CVE database with OSV integration
@@ -68,7 +65,7 @@ pip install -r requirements.txt
 **Local Mode (Ollama)**:
 ```bash
 # Install Ollama from ollama.ai
-ollama pull phi3:mini  # or llama3.2:3b for better quality
+ollama pull phi3:mini  # or llama3.2:3b for speed
 ```
 
 **Cloud Mode (Google Gen AI)**:
@@ -145,35 +142,125 @@ python securefix.py fix report.json --severity-filter
 ```json
 {
   "summary": {
-    "total_findings": 3,
-    "by_severity": {"critical": 1, "high": 2},
+    "total_findings": 31,
     "total_cve_findings": 0,
-    "scan_timestamp": "2025-10-28T20:41:38.642590"
+    "by_severity": {
+      "low": 14,
+      "medium": 15,
+      "high": 2,
+      "critical": 0
+    },
+    "scan_timestamp": "2025-10-29T16:25:28.791091"
   },
-  "findings": [
+  "sast_findings": [
     {
-      "type": "SQL Injection",
-      "file": "app.py",
-      "line": 23,
-      "severity": "High",
-      "confidence": "High",
-      "cwe_id": "CWE-89",
-      "snippet": "cursor.execute(f'SELECT * FROM users WHERE id={uid}')"
+      "type": "Insecure Configuration",
+      "line": 95,
+      "severity": "high",
+      "confidence": "medium",
+      "snippet": "app.secret_key = \"flask-insecure-secret-key-123456\"\napp.run(debug=True, host='0.0.0.0')",
+      "description": "A Flask app appears to be run with debug=True, which exposes the Werkzeug debugger and allows the execution of arbitrary code.",
+      "file": "vulnerable\\vulnerable_app.py"
     }
   ],
-  "cve_findings": []
+  "cve_findings": [
+    {
+      "package": "flask",
+      "version": "0.12",
+      "cves": [
+        "GHSA-562c-5r94-xh97",
+        "GHSA-5wv5-4vpf-pj6m",
+        "GHSA-m2qf-hxjv-5gpq",
+        "PYSEC-2018-66",
+        "PYSEC-2019-179",
+        "PYSEC-2023-62"
+      ],
+      "file": ".\\vulnerable\\requirements-vulnerable.txt"
+    }
+  ]
 }
 ```
 
 **Remediation Output**:
 ```json
 {
-  "finding_id": "SQL-001",
-  "original_code": "cursor.execute(f'SELECT * FROM users WHERE id={uid}')",
-  "suggested_fix": "cursor.execute('SELECT * FROM users WHERE id=%s', (uid,))",
-  "explanation": "Parameterized queries separate SQL code from user data...",
-  "confidence": "High",
-  "cwe_id": "CWE-89"
+  "summary": {
+    "scan_timestamp": "2025-10-29T16:50:52.333427",
+    "remediation_timestamp": "2025-10-29T16:53:07.027683",
+    "llm_info": "Google gemini-2.0-flash-lite",
+    "total_findings": 2,
+    "sast_findings_count": 1,
+    "cve_findings_count": 1,
+    "successful_remediations": 2,
+    "failed_remediations": 0,
+    "by_severity": {
+      "critical": 0,
+      "high": 1,
+      "medium": 1,
+      "low": 0
+    },
+    "by_confidence": {
+      "High": 2,
+      "Medium": 0,
+      "Low": 0
+    }
+  },
+  "remediations": [
+    {
+      "finding": {
+        "type": "Insecure Configuration",
+        "line": 95,
+        "severity": "high",
+        "confidence": "medium",
+        "snippet": "app.secret_key = \"flask-insecure-secret-key-123456\"\napp.run(debug=True, host='0.0.0.0')",
+        "description": "A Flask app appears to be run with debug=True, which exposes the Werkzeug debugger and allows the execution of arbitrary code.",
+        "file": "vulnerable\\vulnerable_app.py"
+      },
+      "suggested_fix": "import os\n\napp.secret_key = os.environ.get('FLASK_SECRET_KEY') or 'generate-a-strong-secret-key'\napp.run(debug=True, host='0.0.0.0')",
+      "explanation": "The original code uses a hardcoded, insecure secret key, making the application vulnerable to attacks. The fix retrieves the secret key from an environment variable, which is a more secure practice. If the environment variable is not set, a placeholder is used, but it should be replaced with a strong, randomly generated secret key in a production environment.",
+      "confidence": "High",
+      "cwe_id": "CWE-453",
+      "source_documents": [
+        {
+          "source": "./remediation/corpus\\888.csv",
+          "doc_type": "cwe"
+        },
+        {
+          "source": "./remediation/corpus\\700.csv",
+          "doc_type": "cwe"
+        }
+      ]
+    },
+    {
+      "finding": {
+        "package": "flask",
+        "version": "0.12",
+        "cves": [
+          "GHSA-562c-5r94-xh97",
+          "GHSA-5wv5-4vpf-pj6m",
+          "GHSA-m2qf-hxjv-5gpq",
+          "PYSEC-2018-66",
+          "PYSEC-2019-179",
+          "PYSEC-2023-62"
+        ],
+        "file": ".\\vulnerable\\requirements-vulnerable.txt"
+      },
+      "suggested_fix": "flask>=2.0.0",
+      "explanation": "The vulnerability lies in the use of an outdated version of Flask (0.12) which is known to have multiple security vulnerabilities. Upgrading to a more recent version, such as 2.0.0 or later, addresses these known vulnerabilities by incorporating security patches and improvements.",
+      "confidence": "High",
+      "cwe_id": null,
+      "source_documents": [
+        {
+          "source": "./remediation/corpus\\1040.csv",
+          "doc_type": "cwe"
+        },
+        {
+          "source": "./remediation/corpus\\1430.csv",
+          "doc_type": "cwe"
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -181,9 +268,7 @@ python securefix.py fix report.json --severity-filter
 
 ### Detection Pipeline
 
-1. **AST Analysis**: Parse Python code into abstract syntax tree
-2. **Data Flow Tracking**: Identify paths from user input to sensitive sinks
-3. **Pattern Matching**: Apply regex rules for secret detection
+1. **Bandit**: Processes each file, builds an AST from it, and runs appropriate plugins against the AST nodes
 4. **CVE Lookup**: Query local database and OSV API for known vulnerabilities
 
 ### Remediation Pipeline
@@ -203,20 +288,9 @@ pytest -v
 pytest --cov=securefix tests/
 ```
 
-## Design Decisions
-
-**Why deterministic detection?** Rule-based and AST analysis ensures reproducibility and zero false negatives on known patterns, critical for CI/CD integration.
-
-**Why RAG for remediation?** Retrieval allows the system to stay current with evolving security best practices without retraining. Fixes are traceable to authoritative sources like OWASP.
-
-**Why hybrid retrieval?** Combining BM25 (keyword matching) with semantic search balances exact pattern matching with conceptual similarity.
-
-**Why decoupled architecture?** Separating detection (deterministic, verifiable) from remediation (generative, advisory) allows security teams to trust findings while providing developers with helpful AI guidance.
-
 ## Limitations
 
 - Python-only support in current implementation
-- Limited to surface-level data flow analysis (no inter-procedural analysis)
 - Remediation suggestions are advisory, not guaranteed safe
 - Local LLM mode requires sufficient RAM (8GB+ recommended)
 
@@ -225,7 +299,6 @@ pytest --cov=securefix tests/
 - Multi-language support (JavaScript, Java, Go)
 - Runtime Application Self-Protection (RASP) integration
 - Machine learning for false positive reduction
-- Inter-procedural data flow analysis
 
 ## Dependencies
 
