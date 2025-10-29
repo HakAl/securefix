@@ -66,12 +66,14 @@ class OSVFinding:
     package: str
     version: str
     cves: list[str]
+    file: str  # Add this field
 
     def to_dict(self):
         return {
             'package': self.package,
             'version': self.version,
-            'cves': self.cves
+            'cves': self.cves,
+            'file': self.file
         }
 
 @dataclass

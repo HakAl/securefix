@@ -94,3 +94,5 @@ Desktop.ini
 *.temp
 temp/
 tmp/
+
+vulnerable/

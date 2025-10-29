@@ -12,9 +12,16 @@ def query_osv(package, version):
             timeout=5
         )
         response.raise_for_status()
-        if response.status_code == 200:
-            return [vuln['id'] for vuln in response.json().get('vulns', [])]
-    except (requests.RequestException, KeyError, ValueError):
+
+        data = response.json()
+        vulns = data.get('vulns', [])
+
+        if vulns:
+            return [vuln['id'] for vuln in vulns]
+
+    except (requests.RequestException, KeyError, ValueError) as e:
+        print(f"Error querying OSV for {package}=={version}: {e}")
         pass
+
     return []
 

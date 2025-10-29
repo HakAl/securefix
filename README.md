@@ -68,7 +68,7 @@ pip install -r requirements.txt
 **Local Mode (Ollama)**:
 ```bash
 # Install Ollama from ollama.ai
-ollama pull phi3:mini  # or llama3.1:8b-instruct-q4_K_M for better quality
+ollama pull phi3:mini  # or llama3.2:3b for better quality
 ```
 
 **Cloud Mode (Google Gen AI)**:
@@ -122,6 +122,21 @@ python securefix.py fix report.json --output fixes.json
 
 # Interactive mode
 python securefix.py fix report.json --interactive
+
+# Local or cloud
+python securefix.py fix report.json --llm-mode local|google
+
+# Choose model
+python securefix.py fix report.json --model-name qwen3:4b
+
+# Disable cache
+python securefix.py fix report.json --no-cache
+
+# Vector DB location
+python securefix.py fix report.json --persist-dir /remediation/chroma_db
+
+# Filter by severity
+python securefix.py fix report.json --severity-filter
 ```
 
 ### Output Format

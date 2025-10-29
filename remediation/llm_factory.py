@@ -102,7 +102,7 @@ Based on the secure coding practices provided above, generate a response in JSON
 class OllamaConfig(LLMConfig):
     """Configuration for local Ollama models."""
 
-    model_name: str = "llama3.1:8b-instruct-q4_K_M"
+    model_name: str = "llama3.2:3b"
     temperature: float = 0.1
     max_tokens: int = 600
     num_thread: int = 6
@@ -203,7 +203,7 @@ class LLMFactory:
 
         if mode == "local":
             return OllamaConfig(
-                model_name=model_name or "llama3.1:8b-instruct-q4_K_M"
+                model_name=model_name or "llama3.2:3b"
             )
 
         elif mode == "google":
@@ -235,7 +235,7 @@ class LLMFactory:
 
     @staticmethod
     def create_ollama(
-            model_name: str = "llama3.1:8b-instruct-q4_K_M",
+            model_name: str = "llama3.2:3b",
             **kwargs
     ) -> OllamaConfig:
         """Convenience method for creating Ollama config."""

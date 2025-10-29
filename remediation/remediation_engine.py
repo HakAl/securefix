@@ -122,13 +122,26 @@ class RemediationEngine:
                 "original_code": vulnerability_finding.get('snippet', ''),
             }
 
-            # Pass extracted variables to the chain
-            # The retriever will handle document retrieval and pass context automatically
-            result = self._get_chain().invoke({"query": prompt_vars})
+            # Build a query string for retrieval (not the full dict!)
+            # This is what the retriever uses to find relevant documents
+            query_string = f"{prompt_vars['finding_type']} {prompt_vars['cwe_id']} vulnerability security fix"
+
+            # Get relevant documents manually
+            docs = self._retriever.invoke(query_string)
+
+            # Build context from retrieved documents
+            context = "\n\n".join([doc.page_content for doc in docs])
+
+            # Add context to prompt vars
+            prompt_vars["context"] = context
+
+            # Now invoke LLM with the formatted prompt
+            formatted_prompt = self.prompt.format(**prompt_vars)
+            llm_result = self.llm.invoke(formatted_prompt)
 
             final_result = {
-                "answer": result["result"],
-                "source_documents": result["source_documents"],
+                "answer": llm_result if isinstance(llm_result, str) else llm_result.content,
+                "source_documents": docs,
             }
 
             if self.enable_cache and self.cache:
@@ -171,7 +184,7 @@ class RemediationEngine:
             base_msg += (
                 "\n\n Troubleshooting tips for Ollama:"
                 "\n  1. Ensure Ollama is running (check with: ollama list)"
-                "\n  2. Verify your model is downloaded (e.g., ollama pull llama3.1:8b-instruct-q4_K_M)"
+                "\n  2. Verify your model is downloaded (e.g., ollama pull llama3.2:3b)"
                 "\n  3. Check if Ollama service is accessible"
             )
         elif "google" in llm_name or "gemini" in llm_name:
