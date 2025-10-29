@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from typing import List, Dict, NamedTuple, Optional, Tuple
 
 from remediation.config import app_config
+from remediation.markdown_processor import process_markdown_file
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
@@ -158,29 +159,21 @@ class DocumentProcessor:
         return documents
 
     def _load_owasp_markdown(self, file_path: str) -> List[Document]:
-        """Load OWASP cheat sheet from Markdown format."""
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-
-        # Convert markdown to plain text for better processing
-        # Keep the markdown structure for context
-
-        # Extract title from filename or first heading
-        filename = Path(file_path).stem
-        title = filename.replace('_', ' ').title()
-
-        doc = Document(
-            page_content=content,
-            metadata={
-                "source": file_path,
-                "title": title,
-                "doc_type": "owasp_cheatsheet",
-                "format": "markdown"
-            }
+        """Load OWASP cheat sheet from Markdown format with header-aware splitting."""
+        chunks = process_markdown_file(
+            file_path,
+            chunk_size=app_config.chunking.chunk_size,
+            chunk_overlap=app_config.chunking.chunk_overlap
         )
 
-        logging.info(f"Loaded OWASP cheat sheet from {Path(file_path).name}")
-        return [doc]
+        for chunk in chunks:
+            chunk.metadata['doc_type'] = 'owasp_cheatsheet'
+            filename = Path(file_path).stem
+            title = filename.replace('_', ' ').title()
+            chunk.metadata['title'] = title
+
+        logging.info(f"Loaded {len(chunks)} chunks from OWASP cheat sheet {Path(file_path).name}")
+        return chunks
 
     def _load_pypa_yaml(self, file_path: str) -> List[Document]:
         """Load PyPA advisory data from YAML format."""
@@ -222,8 +215,8 @@ class DocumentProcessor:
                 "source": file_path,
                 "vulnerability_id": vuln_id,
                 "doc_type": "pypa_advisory",
-                "aliases": aliases,
-                "cve_ids": [alias for alias in aliases if alias.startswith('CVE-')]
+                "aliases": ', '.join(aliases),  # must be str, int, float, or bool
+                "cve_ids": ', '.join([alias for alias in aliases if alias.startswith('CVE-')])
             }
         )
 
@@ -233,7 +226,7 @@ class DocumentProcessor:
     def load_documents(self, documents_folder: str = "remediation/corpus", retries: int = 2,
                        delay: int = 1) -> LoadResult:
         """
-        Load security corpus documents with robust parallel processing.
+        Load security corpus documents with robust parallel processing. Recursively searches subdirectories.
 
         Args:
             documents_folder: The folder to load files from (default: remediation/corpus)
@@ -248,13 +241,13 @@ class DocumentProcessor:
             return LoadResult([], [])
 
         file_paths = [
-            os.path.join(documents_folder, f)
-            for f in os.listdir(documents_folder)
-            if any(f.lower().endswith(ext) for ext in self.supported_extensions)
+            str(file_path)
+            for file_path in Path(documents_folder).rglob('*')
+            if file_path.is_file() and file_path.suffix.lower() in self.supported_extensions
         ]
 
         if not file_paths:
-            logging.info(f"No supported files found in '{documents_folder}'.")
+            logging.info(f"No supported files found in '{documents_folder}' or its subdirectories.")
             logging.info(f"Supported formats: {', '.join(sorted(self.supported_extensions))}")
             return LoadResult([], [])
 
@@ -312,29 +305,55 @@ class DocumentProcessor:
         documents = load_result.loaded_documents
         logging.info(f"Successfully loaded {len(documents)} security corpus documents.")
 
-        logging.info("Splitting into chunks...")
-        split_chunks = self._split_documents_batch(documents)
-        logging.info(f"Created {len(split_chunks)} chunks.")
+        # Markdown documents already chunked
+        pre_chunked = []
+        needs_splitting = []
+
+        for doc in documents:
+            if doc.metadata.get('pre_chunked'):
+                pre_chunked.append(doc)
+            else:
+                needs_splitting.append(doc)
+
+        logging.info(f"Pre-chunked markdown: {len(pre_chunked)} chunks")
+
+        if needs_splitting:
+            logging.info(f"Splitting {len(needs_splitting)} documents...")
+            split_chunks = self._split_documents_batch(needs_splitting)
+            logging.info(f"Created {len(split_chunks)} chunks from splitting.")
+        else:
+            split_chunks = []
+
+        # Combine all chunks
+        all_chunks = pre_chunked + split_chunks
+        logging.info(f"Total chunks: {len(all_chunks)}")
 
         # Build BM25 index
         self.bm25_index, self.bm25_chunks = self._build_bm25_index(split_chunks)
 
         # Create vector store
-        logging.info("🗄️ Creating vector database...")
+        logging.info("Creating vector database...")
         vector_store = self._create_vectorstore_batched(split_chunks)
 
         logging.info("Vector database created successfully!")
         return vector_store, self.bm25_index, self.bm25_chunks
 
-    def _create_vectorstore_batched(self, chunks: List[Document]) -> Chroma:
+    def _create_vectorstore_batched(self, chunks: List[Document], batch_size: int = 100) -> Chroma:
         """Create vector store with progress tracking via context manager."""
+        # Create initial store with first batch
         with create_progress_embeddings(self.embeddings, len(chunks)) as prog_emb:
             vector_store = Chroma.from_documents(
-                documents=chunks,
+                documents=chunks[:batch_size],
                 embedding=prog_emb,
                 persist_directory=self.persist_directory,
                 collection_metadata={"hnsw:space": "cosine"}
             )
+
+            # Add remaining in batches
+            for i in range(batch_size, len(chunks), batch_size):
+                batch = chunks[i:i + batch_size]
+                vector_store.add_documents(batch)
+
         return vector_store
 
     def load_existing_vectorstore(self) -> Tuple[Optional[Chroma], Optional[BM25Okapi], Optional[List[Document]]]:
