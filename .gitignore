@@ -62,6 +62,9 @@ chroma_db/
 *.index
 *.faiss
 
+# Security corpus
+remediation/corpus/
+
 # LLM caches
 .ollama/
 *.cache
