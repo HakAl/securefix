@@ -1,11 +1,12 @@
+import os
 import click
 import json
 from datetime import datetime
 from pathlib import Path
-
 import sast.scanner as sast_scanner
 import cve.scanner as cve_scanner
 from models import ScanResult
+from remediation.corpus_builder import DocumentProcessor
 
 
 @click.group()
@@ -67,6 +68,79 @@ def scan(target, dependencies, output):
         if count > 0:
             click.echo(f"    {severity}: {count}")
 
+
+@cli.command()
+@click.option('--corpus-path', '-c', type=click.Path(),
+              default='./remediation/corpus',
+              help='Path to security corpus files')
+@click.option('--rebuild', is_flag=True,
+              help='Rebuild vector store even if one exists')
+@click.option('--persist-dir', type=click.Path(),
+              default='./chroma_db',
+              help='Directory to store vector database')
+def ingest(corpus_path, rebuild, persist_dir):
+    """Build vector database from security corpus"""
+    import time
+    start_time = time.time()
+
+    # Ensure corpus directory exists
+    if not os.path.exists(corpus_path):
+        click.echo(f"Creating corpus directory: {corpus_path}")
+        os.makedirs(corpus_path, exist_ok=True)
+        click.echo(f"Please add security corpus files and run again")
+        click.echo(f"Supported formats: .csv, .md, .yaml, .yml")
+        return
+
+    # Check if already exists
+    if os.path.exists(persist_dir) and not rebuild:
+        click.echo(f"Vector database already exists at {persist_dir}")
+        click.echo("Use --rebuild to recreate it")
+        return
+
+    # Clean up if rebuilding
+    if os.path.exists(persist_dir) and rebuild:
+        import shutil
+        click.echo(f"Removing old database...")
+        shutil.rmtree(persist_dir)
+
+    # Initialize processor
+    try:
+        processor = DocumentProcessor(persist_directory=persist_dir)
+    except Exception as e:
+        click.echo(f"Failed to initialize: {e}", err=True)
+        return
+
+    # Process documents
+    click.echo(f"Processing corpus from {corpus_path}...")
+    click.echo("(This may take several minutes...)")
+
+    processing_start = time.time()
+    try:
+        result = processor.process_documents(corpus_path)
+    except Exception as e:
+        click.echo(f"Failed to build vector database: {e}", err=True)
+        return
+    processing_time = time.time() - processing_start
+
+    if result is None:
+        click.echo("No documents were successfully processed", err=True)
+        return
+
+    vector_store, bm25_index, bm25_chunks = result
+
+    total_time = time.time() - start_time
+
+    # Show statistics
+    click.echo(f"\nVector database built successfully!")
+    click.echo(f"\nStatistics:")
+    click.echo(f"  Chunks indexed: {len(bm25_chunks)}")
+    click.echo(f"  Storage location: {persist_dir}")
+    click.echo(f"  Corpus source: {corpus_path}")
+    click.echo(f"\nPerformance:")
+    click.echo(f"  Processing time: {processing_time:.2f}s")
+    click.echo(f"  Total time: {total_time:.2f}s")
+    click.echo(f"  Average: {processing_time / len(bm25_chunks) * 1000:.1f}ms per chunk")
+    click.echo(f"\nReady to use with: securefix fix <report.json>")
 
 if __name__ == '__main__':
     cli()

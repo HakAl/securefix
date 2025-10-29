@@ -79,6 +79,25 @@ echo "GOOGLE_API_KEY=your_key_here" > .env
 
 ## Usage
 
+### Build Knowledge Base (One-time setup)
+
+First, ingest your security corpus to build the vector database:
+```bash
+# Use default corpus location (./remediation/corpus)
+python securefix.py ingest
+
+# Or specify custom corpus path
+python securefix.py ingest --corpus-path /path/to/corpus
+
+# Rebuild existing database
+python securefix.py ingest --rebuild
+```
+
+**Supported corpus formats:**
+- `.csv` - CWE weakness data
+- `.md` - OWASP cheat sheets
+- `.yaml`/`.yml` - PyPA security advisories
+
 ### Basic Scanning
 
 ```bash
@@ -112,7 +131,9 @@ python securefix.py fix report.json --interactive
 {
   "summary": {
     "total_findings": 3,
-    "by_severity": {"critical": 1, "high": 2}
+    "by_severity": {"critical": 1, "high": 2},
+    "total_cve_findings": 0,
+    "scan_timestamp": "2025-10-28T20:41:38.642590"
   },
   "findings": [
     {
@@ -124,7 +145,8 @@ python securefix.py fix report.json --interactive
       "cwe_id": "CWE-89",
       "snippet": "cursor.execute(f'SELECT * FROM users WHERE id={uid}')"
     }
-  ]
+  ],
+  "cve_findings": []
 }
 ```
 
@@ -202,7 +224,8 @@ See `requirements.txt` && `requirements-dev.txt` for complete dependency list.
 
 ## References
 
-- OWASP Top 10: https://owasp.org/www-project-top-ten/
+- OWASP Cheat Sheets: https://github.com/OWASP/CheatSheetSeries/tree/master/cheatsheets
 - CWE Database: https://cwe.mitre.org/
 - OSV Vulnerability Database: https://osv.dev/
 - Python AST Documentation: https://docs.python.org/3/library/ast.html
+- Python Package Advisory DB: https://github.com/pypa/advisory-database

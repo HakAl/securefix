@@ -61,6 +61,7 @@ coverage.xml
 chroma_db/
 *.index
 *.faiss
+model_cache/
 
 # Security corpus
 remediation/corpus/
