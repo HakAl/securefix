@@ -80,6 +80,9 @@ echo "GOOGLE_API_KEY=your_key_here" > .env
 
 First, ingest your security corpus to build the vector database:
 ```bash
+# Use this script, or source your own
+python corpus_downloader.py --corpus-path ./remediation/corpus
+
 # Use default corpus location (./remediation/corpus)
 python securefix.py ingest
 
