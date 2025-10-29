@@ -239,6 +239,7 @@ See `requirements.txt` && `requirements-dev.txt` for complete dependency list.
 
 ## References
 
+- Bandit: https://github.com/PyCQA/bandit
 - OWASP Cheat Sheets: https://github.com/OWASP/CheatSheetSeries/tree/master/cheatsheets
 - CWE Database: https://cwe.mitre.org/
 - OSV Vulnerability Database: https://osv.dev/

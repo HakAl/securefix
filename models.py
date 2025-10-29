@@ -1,7 +1,7 @@
 from collections import Counter
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Optional, Union
 
 
 class Severity(Enum):
@@ -18,10 +18,20 @@ class Confidence(Enum):
 class Type(Enum):
     SECRETS = "Hardcoded Secret"
     SQL_INJECTION = "SQL Injection"
+    INSECURE_DESERIALIZATION = "Insecure Deserialization"
+    COMMAND_INJECTION = "Command Injection"
+    INSECURE_TEMP_FILE = "Insecure Temp File Access"
+    XML_VULNERABILITY = "XML Vulnerability"
+    CRYPTO_WEAKNESS = "Weak Cryptography"
+    XSS = "Cross-Site Scripting"
+    DANGEROUS_CODE = "Dangerous Code Execution"
+    INSECURE_CONFIG = "Insecure Configuration"
+    PATH_TRAVERSAL = "Path Traversal"
+    UNKNOWN = "Unknown Vulnerability"
 
 @dataclass
 class Finding:
-    type: Type
+    type: Union[Type, str]
     line: int
     severity: Severity
     confidence: Confidence

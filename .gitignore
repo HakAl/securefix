@@ -72,7 +72,9 @@ remediation/corpus/
 
 # Output files
 report.json
+report_*.json
 fixes.json
+fixes_*.json
 *.log
 
 # Documentation builds

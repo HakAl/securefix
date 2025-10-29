@@ -3,7 +3,7 @@ import click
 import json
 from datetime import datetime
 from pathlib import Path
-import sast.scanner as sast_scanner
+import sast.bandit_scanner as bandit_scanner
 import cve.scanner as cve_scanner
 from models import ScanResult
 from remediation.corpus_builder import DocumentProcessor
@@ -29,10 +29,8 @@ def scan(target, dependencies, output):
 
     # SAST scanning
     target_path = Path(target)
-    if target_path.is_file():
-        sast_findings = sast_scanner.scan_file(str(target_path))
-    elif target_path.is_dir():
-        sast_findings = sast_scanner.scan_directory(str(target_path))
+    if target_path.is_file() or target_path.is_dir():
+        sast_findings = bandit_scanner.scan(str(target_path))
     else:
         click.echo(f"Error: {target} is not a valid file or directory", err=True)
         return
@@ -285,7 +283,7 @@ def fix(report, output, interactive, llm_mode, model_name, no_cache, persist_dir
             vuln_type = finding.get('type', 'Unknown')
             file_path = str(finding.get('file', 'Unknown'))
             line_number = str(finding.get('line', 'Unknown'))
-            snippet = finding.get('code', '')
+            snippet = finding.get('snippet', '')
 
         click.echo(f"[{i}/{len(findings)}] {vuln_type} at {file_path}:{line_number}")
 

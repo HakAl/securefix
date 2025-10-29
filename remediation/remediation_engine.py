@@ -113,13 +113,19 @@ class RemediationEngine:
         t0 = time.perf_counter()
         try:
             # Extract variables for prompt template
+            raw_snippet = vulnerability_finding.get('snippet', '')
+
+            # Convert escaped newlines to actual newlines
+            # This handles both \n from JSON and actual newline characters
+            cleaned_snippet = raw_snippet.replace('\\n', '\n') if '\\n' in raw_snippet else raw_snippet
+
             prompt_vars = {
                 "finding_type": vulnerability_finding.get('type', 'Unknown'),
                 "line_number": vulnerability_finding.get('line_number', 'Unknown'),
                 "file_path": vulnerability_finding.get('file_path', 'Unknown'),
                 "severity": vulnerability_finding.get('severity', 'Medium'),
                 "cwe_id": vulnerability_finding.get('cwe_id', ''),
-                "original_code": vulnerability_finding.get('snippet', ''),
+                "original_code": cleaned_snippet,
             }
 
             # Build a query string for retrieval (not the full dict!)
