@@ -111,4 +111,5 @@ def convert_bandit_result(result: Dict[str, Any]) -> Finding:
         snippet=snippet,
         description=result.get("issue_text"),
         file=result.get("filename"),
+        bandit_test_id=result.get("test_id"),
     )

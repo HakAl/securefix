@@ -38,6 +38,7 @@ class Finding:
     snippet: Optional[str] = None
     description: Optional[str] = None
     file: Optional[str] = None
+    bandit_test_id: Optional[str] = None
 
     def to_dict(self):
         data = {
@@ -53,6 +54,8 @@ class Finding:
             data['description'] = self.description
         if self.file is not None:
             data['file'] = self.file
+        if self.bandit_test_id is not None:
+            data['bandit_test_id'] = self.bandit_test_id
 
         return data
 

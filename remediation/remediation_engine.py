@@ -128,10 +128,8 @@ class RemediationEngine:
                 "original_code": cleaned_snippet,
             }
 
-            # Build a query string for retrieval (not the full dict!)
-            # This is what the retriever uses to find relevant documents
-            query_string = f"{prompt_vars['finding_type']} {prompt_vars['cwe_id']} vulnerability security fix"
-
+            # Build a query string for retrieval used to find relevant documents
+            query_string = f"{prompt_vars['finding_type']} {vulnerability_finding.get('bandit_test_id', '')} {vulnerability_finding.get('description', '')} {prompt_vars['cwe_id']} vulnerability security fix"
             # Get relevant documents manually
             docs = self._retriever.invoke(query_string)
 
