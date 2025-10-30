@@ -17,7 +17,7 @@ SecureFix bridges rule-based precision and AI-driven guidance through two core c
 
 ### Detection Capabilities
 
-- **Code-level vulnerabilities** via Abstract Syntax Tree (AST) analysis
+- **Code-level vulnerabilities** via Bandit analysis
   - SQL injection through unsafe query construction
   - Hardcoded secrets (API keys, tokens, credentials)
   - See: sast/bandit_mapper.py for full list
@@ -30,6 +30,13 @@ SecureFix bridges rule-based precision and AI-driven guidance through two core c
 - **Context-aware fix generation** with explanations and confidence scoring
 - **Multi-LLM support** for both local (Ollama) and cloud-based (Google Gen AI) processing
 - **Query caching** for performance optimization
+
+### Performance Benchmarks
+
+- Success rate: 100% (llama3.2:3b on 34 diverse vulnerabilities)
+- Confidence: 97% High confidence (33/34)
+- Speed: ~23s per vulnerability (local inference)
+- Corpus: 14,348 chunks, hybrid BM25 + vector search
 
 ## Installation
 
@@ -149,12 +156,13 @@ python securefix.py fix report.json --severity-filter
   "sast_findings": [
     {
       "type": "Insecure Configuration",
-      "line": 95,
+      "line": 112,
       "severity": "high",
       "confidence": "medium",
-      "snippet": "app.secret_key = \"flask-insecure-secret-key-123456\"\napp.run(debug=True, host='0.0.0.0')",
+      "snippet": "# Running with hardcoded credentials and debug mode\napp.run(debug=True, host='0.0.0.0', port=5000)",
       "description": "A Flask app appears to be run with debug=True, which exposes the Werkzeug debugger and allows the execution of arbitrary code.",
-      "file": "vulnerable\\vulnerable_app.py"
+      "file": "vulnerable\\admin_panel.py",
+      "bandit_test_id": "B201"
     }
   ],
   "cve_findings": [
@@ -203,25 +211,26 @@ python securefix.py fix report.json --severity-filter
     {
       "finding": {
         "type": "Insecure Configuration",
-        "line": 95,
+        "line": 112,
         "severity": "high",
         "confidence": "medium",
-        "snippet": "app.secret_key = \"flask-insecure-secret-key-123456\"\napp.run(debug=True, host='0.0.0.0')",
+        "snippet": "# Running with hardcoded credentials and debug mode\napp.run(debug=True, host='0.0.0.0', port=5000)",
         "description": "A Flask app appears to be run with debug=True, which exposes the Werkzeug debugger and allows the execution of arbitrary code.",
-        "file": "vulnerable\\vulnerable_app.py"
+        "file": "vulnerable\\admin_panel.py",
+        "bandit_test_id": "B201"
       },
-      "suggested_fix": "import os\n\napp.secret_key = os.environ.get('FLASK_SECRET_KEY') or 'generate-a-strong-secret-key'\napp.run(debug=True, host='0.0.0.0')",
-      "explanation": "The original code uses a hardcoded, insecure secret key, making the application vulnerable to attacks. The fix retrieves the secret key from an environment variable, which is a more secure practice. If the environment variable is not set, a placeholder is used, but it should be replaced with a strong, randomly generated secret key in a production environment.",
+      "suggested_fix": "app.run(debug=False, host='0.0.0.0', port=5000)",
+      "explanation": "The original code runs the application in debug mode with hardcoded credentials, making it vulnerable to exploitation by attackers who can easily access sensitive information and potentially gain unauthorized access.",
       "confidence": "High",
-      "cwe_id": "CWE-453",
+      "cwe_id": "A6:2017-Security Misconfiguration",
       "source_documents": [
         {
-          "source": "./remediation/corpus\\888.csv",
-          "doc_type": "cwe"
+          "source": "remediation\\corpus\\cheatsheets\\Secure_Code_Review_Cheat_Sheet.md",
+          "doc_type": "owasp_cheatsheet"
         },
         {
-          "source": "./remediation/corpus\\700.csv",
-          "doc_type": "cwe"
+          "source": "remediation\\corpus\\cheatsheets\\Abuse_Case_Cheat_Sheet.md",
+          "doc_type": "owasp_cheatsheet"
         }
       ]
     },
@@ -310,5 +319,4 @@ See `requirements.txt` && `requirements-dev.txt` for complete dependency list.
 - OWASP Cheat Sheets: https://github.com/OWASP/CheatSheetSeries/tree/master/cheatsheets
 - CWE Database: https://cwe.mitre.org/
 - OSV Vulnerability Database: https://osv.dev/
-- Python AST Documentation: https://docs.python.org/3/library/ast.html
 - Python Package Advisory DB: https://github.com/pypa/advisory-database
