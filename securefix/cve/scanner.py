@@ -118,19 +118,17 @@ def _extract_version_from_specifier(specifier_set):
     2. Minimum version (>=, >)
     3. Maximum version (<, <=)
     """
+    # First pass: look for exact version (highest priority)
     for spec in specifier_set:
-        operator = spec.operator
-        version = spec.version
+        if spec.operator == "==":
+            return spec.version
 
-        # Exact match - use this version
-        if operator == "==":
-            return version
+    # Second pass: look for minimum version
+    for spec in specifier_set:
+        if spec.operator in (">=", ">"):
+            return spec.version
 
-        # Greater than or equal - use minimum version
-        if operator in (">=", ">"):
-            return version
-
-    # If no >= or ==, look for < or <=
+    # Third pass: look for maximum version
     for spec in specifier_set:
         if spec.operator in ("<", "<="):
             return spec.version
