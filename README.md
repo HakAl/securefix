@@ -1,5 +1,8 @@
 # SecureFix
 
+![Security Scan](https://github.com/HakAl/securefix/actions/workflows/securefix.yml/badge.svg)
+![Tests](https://github.com/HakAl/securefix/actions/workflows/test.yml/badge.svg)
+
 A static Python application security testing (SAST) suite with intelligent remediation powered by retrieval-augmented generation (RAG).
 SecureFix combines deterministic vulnerability detection with context-aware fix suggestions to help developers identify and resolve security issues efficiently.
 
@@ -28,28 +31,6 @@ SecureFix bridges rule-based precision and AI-driven guidance through two core c
 - **Multi-LLM support** for both local (Ollama) and cloud-based (Google Gen AI) processing
 - **Query caching** for performance optimization
 
-## Architecture
-
-```
-securefix/
-├── sast/
-│   ├── bandit_scanner.py              # AST-based code analysis
-├── cve/
-│   ├── scanner.py              # Dependency vulnerability scanning
-│   ├── db.py                   # CVE database with OSV integration
-├── remediation/
-│   ├── corpus/                 # Security fix pattern knowledge base
-│   ├── remediation_engine.py   # RAG-based fix generation
-│   ├── fix_knowledge_store.py  # Vector store for security patterns
-│   ├── vulnerability_retriever.py  # Hybrid retrieval pipeline
-│   ├── llm_factory.py          # Multi-LLM provider support
-├── tests/
-│   ├── test_sast.py
-│   ├── test_remediation.py
-├── securefix.py                # CLI entry point
-└── requirements.txt
-```
-
 ## Installation
 
 ```bash
@@ -65,7 +46,7 @@ pip install -r requirements.txt
 **Local Mode (Ollama)**:
 ```bash
 # Install Ollama from ollama.ai
-ollama pull llama3.2:3b  # for speed, or something like for more accuracy llama3.1:8b 
+ollama pull llama3.2:3b  # for speed, or for more accuracy llama3.1:8b 
 ```
 
 **Cloud Mode (Google Gen AI)**:

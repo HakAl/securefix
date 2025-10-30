@@ -22,7 +22,11 @@ def cli():
               help='Path to requirements.txt for CVE scanning')
 @click.option('--output', '-o', type=click.Path(), default='report.json',
               help='Output JSON file (default: report.json)')
-def scan(target, dependencies, output):
+@click.option('--severity', '-s', type=click.Choice(['low', 'medium', 'high'], case_sensitive=True),
+              default='medium', help='Severity of findings to report')
+@click.option('--confidence', type=click.Choice(['low', 'medium', 'high'], case_sensitive=True),
+              default='medium', help='Confidence of findings to report')
+def scan(target, dependencies, output, severity, confidence):
     """Scan TARGET (file or directory) for security vulnerabilities"""
 
     click.echo(f"Scanning {target}...")
@@ -30,7 +34,7 @@ def scan(target, dependencies, output):
     # SAST scanning
     target_path = Path(target)
     if target_path.is_file() or target_path.is_dir():
-        sast_findings = bandit_scanner.scan(str(target_path))
+        sast_findings = bandit_scanner.scan(str(target_path), severity, confidence)
     else:
         click.echo(f"Error: {target} is not a valid file or directory", err=True)
         return

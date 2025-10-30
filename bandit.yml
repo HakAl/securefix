@@ -1,0 +1,21 @@
+# Customize configuration for your project:
+# https://github.com/PyCQA/bandit/blob/main/doc/source/config.rst
+
+skips:
+  - B101
+
+exclude_dirs:
+  - tests
+  - .venv
+  - venv
+  - .github
+  - chroma_db
+  - model_cache
+  - remediation/corpus
+  - vulnerable
+  - .pytest_cache
+  - __pycache__
+  - .idea
+  - '**/*.json'      # Exclude all JSON files
+  - '**/.gitignore'  # Exclude .gitignore files
+  - '**/.env'        # Exclude .env files

@@ -1,15 +1,24 @@
 import subprocess
 import json
 import os
-from typing import List, Dict, Any
+from typing import List, Optional
 from models import Finding
 from sast.bandit_mapper import convert_bandit_result
 
 
-def scan(path: str, severity: str = "medium", confidence: str = "medium") -> List[Finding]:
+def _find_bandit_config() -> Optional[str]:
+    config_files = ['.bandit', 'bandit.yml', 'bandit.yaml', '.bandit.yml', '.bandit.yaml']
+    for config_file in config_files:
+        if os.path.exists(config_file):
+            return config_file
+    return None
+
+
+def scan(path: str, severity: str, confidence: str) -> List[Finding]:
     """
     Runs the Bandit scanner on the given path (file or directory).
     Bandit handles both automatically with -r flag.
+    Load bandit config file if present.
     """
     print(f"Running SAST scan with Bandit on {path}...")
 
@@ -20,6 +29,12 @@ def scan(path: str, severity: str = "medium", confidence: str = "medium") -> Lis
         "--severity-level", severity,
         "--confidence-level", confidence,
     ]
+
+    # Optionally, add config file
+    config_file = _find_bandit_config()
+    if config_file:
+        command.extend(["-c", config_file])
+        print(f"Using Bandit config: {config_file}")
 
     try:
         result = subprocess.run(command, capture_output=True, text=True)

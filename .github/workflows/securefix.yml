@@ -1,0 +1,71 @@
+name: Security Scan
+
+on: [push, pull_request]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install SecureFix
+      run: |
+        pip install -r requirements.txt
+        pip install bandit==1.7.5
+
+    - name: Run scan
+      run: python securefix.py scan . --output results.json
+      continue-on-error: true
+
+    - name: Upload results
+      uses: actions/upload-artifact@v4
+      if: always()  # Upload even if next step fails
+      with:
+        name: scan-results
+        path: results.json
+
+    - name: Check for critical/high severity findings
+      run: |
+        # Parse results
+        CRITICAL=$(jq '.summary.by_severity.critical' results.json)
+        HIGH=$(jq '.summary.by_severity.high' results.json)
+        TOTAL=$(jq '.summary.total_findings' results.json)
+        
+        echo "Scan Results:"
+        echo "  Total findings: $TOTAL"
+        echo "  Critical: $CRITICAL"
+        echo "  High: $HIGH"
+        
+        # Fail if critical or high severity found
+        if [ "$CRITICAL" -gt 0 ]; then
+          echo "::error::Found $CRITICAL critical severity vulnerabilities"
+          exit 1
+        fi
+        
+        if [ "$HIGH" -gt 0 ]; then
+          echo "::error::Found $HIGH high severity vulnerabilities"
+          exit 1
+        fi
+        
+        echo "No critical or high severity vulnerabilities found"
+
+    - name: Create job summary
+      if: always()
+      run: |
+        echo "# SecureFix Security Scan" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Summary" >> $GITHUB_STEP_SUMMARY
+        
+        jq -r '"**Total Findings:** \(.summary.total_findings)  "' results.json >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### By Severity" >> $GITHUB_STEP_SUMMARY
+        jq -r '"- Critical: \(.summary.by_severity.critical)  "' results.json >> $GITHUB_STEP_SUMMARY
+        jq -r '"- High: \(.summary.by_severity.high)  "' results.json >> $GITHUB_STEP_SUMMARY
+        jq -r '"- Medium: \(.summary.by_severity.medium)  "' results.json >> $GITHUB_STEP_SUMMARY
+        jq -r '"- Low: \(.summary.by_severity.low)  "' results.json >> $GITHUB_STEP_SUMMARY
