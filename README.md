@@ -43,10 +43,20 @@ pip install -r requirements.txt
 
 ### LLM Setup
 
+**Model Recommendations**
+
+**For best results:**
+- Google Gemini (recommended, 100% success rate)
+- llama3.2:3b or larger (100% success rate)
+
+**Not recommended:**
+- Models < 3B parameters (phi3:mini, deepseek-coder:1.3b) - inconsistent output quality
+- deepseek-coder:1.3b is fastest. Provides accurate results, supporting docs, but no suggested fixes.
+
 **Local Mode (Ollama)**:
 ```bash
 # Install Ollama from ollama.ai
-ollama pull llama3.2:3b  # for speed, or for more accuracy llama3.1:8b 
+ollama pull llama3.2:3b
 ```
 
 **Cloud Mode (Google Gen AI)**:

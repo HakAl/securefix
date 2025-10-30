@@ -6,6 +6,7 @@ from pathlib import Path
 import sast.bandit_scanner as bandit_scanner
 import cve.scanner as cve_scanner
 from models import ScanResult
+from json_repair import repair_json
 from remediation.corpus_builder import DocumentProcessor
 from typing import List, Dict
 
@@ -410,36 +411,37 @@ def _configure_llm(mode: str, model_name: str = None):
 
 def _parse_fix_response(response: str) -> dict:
     """Parse LLM JSON response, handling common formatting issues."""
-
     if not response:
         return None
 
-    # Remove markdown code blocks - be careful of nested code blocks!
+    # Remove markdown code blocks
     if '```json' in response:
-        # Find the json block start
         start_marker = response.find('```json')
         if start_marker != -1:
-            start = start_marker + 7  # len('```json')
-            # Find the LAST ``` in the string (closing the outer block)
+            start = start_marker + 7
             end = response.rfind('```')
             if end != -1 and end > start:
                 response = response[start:end].strip()
     elif response.startswith('```') and response.count('```') >= 2:
-        # Generic code block - use rfind for last occurrence
         start = response.find('```') + 3
         end = response.rfind('```')
         if end != -1 and end > start:
             response = response[start:end].strip()
 
-    # Clean up
     response = response.strip()
 
-    # Try direct parse
+    # Try direct parse first
     try:
         data = json.loads(response)
         return data
     except json.JSONDecodeError:
-        return None
+        # Use json-repair for messy LLM output
+        try:
+            repaired = repair_json(response)
+            return json.loads(repaired)
+        except Exception as e:
+            click.echo(f"  Warning: Could not parse fix response: {e}", err=True)
+            return None
 
 
 def _interactive_review(remediations: List[Dict]) -> List[Dict]:
