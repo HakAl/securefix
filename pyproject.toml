@@ -1,0 +1,121 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "securefix"
+version = "0.1.0"
+description = "Static Application Security Testing with Smart Remediation"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    {name = "HakAl" }
+]
+keywords = ["security", "sast", "vulnerability", "remediation", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "requests>=2.32.0,<3.0.0",
+    "click>=8.3.0,<9.0.0",
+    "langchain>=0.1.0",
+    "langchain-community>=0.3.0,<0.4.0",
+    "langchain-chroma>=0.1.0",
+    "langchain-core>=0.3.0,<0.4.0",
+    "langchain-huggingface>=0.1.0",
+    "langchain-ollama>=0.1.0",
+    "langchain-google-genai>=2.0.0,<3.0.0",
+    "sentence-transformers>=2.2.0",
+    "rank-bm25>=0.2.1",
+    "chromadb>=0.4.0",
+    "tqdm>=4.65.0",
+    "numpy>=1.21.0",
+    "nltk>=3.8.0",
+    "google-generativeai",
+    "pyyaml>=6.0",
+    "markdown>=3.4.0",
+    "pydantic>=2.0,<3.0",
+    "python-dotenv>=1.0.0",
+    "bandit>=1.8.0,<2.0.0",
+    "json-repair>=0.52.0,<1.0.0",
+    "tomli>=2.0.0; python_version < '3.11'",
+    "packaging>=21.0",
+]
+
+[project.optional-dependencies]
+# Development dependencies
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+# LlamaCPP support for local model inference
+llamacpp = [
+    "llama-cpp-python>=0.2.0",
+]
+
+# All optional dependencies
+all = [
+    "securefix[dev,llamacpp]",
+]
+
+[project.scripts]
+securefix = "securefix.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/HakAl/securefix"
+Repository = "https://github.com/HakAl/securefix"
+Issues = "https://github.com/HakAl/securefix/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["securefix*"]
+exclude = ["tests*", "docs*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--cov=securefix",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "requires_nltk: marks tests that require NLTK data",
+    "requires_api: marks tests that require API keys",
+]
+
+[tool.coverage.run]
+source = ["securefix"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

@@ -2,8 +2,8 @@ import subprocess
 import json
 import os
 from typing import List, Optional
-from models import Finding
-from sast.bandit_mapper import convert_bandit_result
+from securefix.models import Finding
+from securefix.sast.bandit_mapper import convert_bandit_result
 
 
 def _find_bandit_config() -> Optional[str]:

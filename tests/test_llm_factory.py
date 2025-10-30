@@ -1,17 +1,12 @@
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import sys
 import os
+from securefix.remediation.llm_factory import LLMFactory, GoogleGenAIConfig, OllamaConfig, check_ollama_available
 
 # Add parent directory to path so we can import modules from remediation/
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from remediation.llm_factory import (
-    LLMFactory,
-    GoogleGenAIConfig,
-    OllamaConfig,
-    check_ollama_available,
-)
 
 
 class TestLLMFactory:

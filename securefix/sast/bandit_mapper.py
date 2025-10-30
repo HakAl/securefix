@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from models import Type, Severity, Confidence, Finding
+from securefix.models import Type, Severity, Confidence, Finding
 
 # This dictionary maps the Bandit 'test_id'
 BANDIT_ID_TO_TYPE = {

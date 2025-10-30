@@ -1,5 +1,5 @@
 import requests
-from models import OSVRequest
+from securefix.models import OSVRequest
 
 
 def query_osv(package, version):

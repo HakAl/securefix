@@ -40,15 +40,58 @@ SecureFix bridges rule-based precision and AI-driven guidance through two core c
 
 ## Installation
 
+### From Source
+
 ```bash
+# Clone the repository
 git clone https://github.com/hakal/securefix.git
 cd securefix
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+
+# Install with pip (recommended)
+pip install -e .
+
+# Or install with development dependencies
+pip install -e ".[dev]"
+
+# Or install with all optional dependencies
+pip install -e ".[all]"
+```
+
+### Optional Dependencies
+
+```bash
+# Install with LlamaCPP support (for local model inference)
+pip install -e ".[llamacpp]"
+
+# Install development tools (pytest, coverage)
+pip install -e ".[dev]"
+```
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash
+# For Google Gemini support
+GOOGLE_API_KEY=your_api_key_here
+
+# Optional: Default model configuration
+MODEL_NAME=llama3.2:3b
 ```
 
 ### LLM Setup
+
+**Ollama (Local - Default):**
+- Install Ollama: https://ollama.com/
+- Pull a model: `ollama pull llama3.2:3b`
+- No API key required
+
+**Google Gemini (Cloud):**
+- Set `GOOGLE_API_KEY` in `.env`
+- Use `--llm-mode google` flag
+- Requires internet connection
 
 **Model Recommendations**
 
@@ -77,18 +120,19 @@ echo "GOOGLE_API_KEY=your_key_here" > .env
 ### Build Knowledge Base (One-time setup)
 
 First, ingest your security corpus to build the vector database:
-```bash
-# Use this script, or source your own
-python corpus_downloader.py --corpus-path ./remediation/corpus
 
-# Use default corpus location (./remediation/corpus)
-python securefix.py ingest
+```bash
+# Download security corpus (use this script, or source your own)
+python securefix/corpus_downloader.py --corpus-path ./remediation/corpus
+
+# Build vector database from corpus
+securefix ingest
 
 # Or specify custom corpus path
-python securefix.py ingest --corpus-path /path/to/corpus
+securefix ingest --corpus-path /path/to/corpus
 
 # Rebuild existing database
-python securefix.py ingest --rebuild
+securefix ingest --rebuild
 ```
 
 **Supported corpus formats:**
@@ -100,41 +144,48 @@ python securefix.py ingest --rebuild
 
 ```bash
 # Scan a single file
-python securefix.py scan path/to/code.py
+securefix scan path/to/code.py
 
 # Scan a directory
-python securefix.py scan src/
+securefix scan src/
 
 # Scan with dependencies
-python securefix.py scan src/ --dependencies requirements.txt
+securefix scan src/ --dependencies requirements.txt
 
 # Custom output file
-python securefix.py scan src/ -d requirements.txt -o my_report.json
+securefix scan src/ -d requirements.txt -o my_report.json
 ```
 
 ### Remediation
 
 ```bash
 # Generate fix suggestions
-python securefix.py fix report.json --output fixes.json
+securefix fix report.json --output fixes.json
 
-# Interactive mode
-python securefix.py fix report.json --interactive
+# Interactive mode (review and approve each fix)
+securefix fix report.json --interactive
 
-# Local or cloud
-python securefix.py fix report.json --llm-mode local|google
+# Choose LLM backend
+securefix fix report.json --llm-mode local    # Ollama (default)
+securefix fix report.json --llm-mode google   # Google Gemini
 
-# Choose model
-python securefix.py fix report.json --model-name qwen3:4b
+# Specify model name
+securefix fix report.json --model-name llama3.2:3b
 
-# Disable cache
-python securefix.py fix report.json --no-cache
+# Disable semantic caching
+securefix fix report.json --no-cache
 
-# Vector DB location
-python securefix.py fix report.json --persist-dir /remediation/chroma_db
+# Custom vector database location
+securefix fix report.json --persist-dir ./my_chroma_db
 
-# Filter by severity
-python securefix.py fix report.json --severity-filter
+# Filter by severity (only fix high/critical vulnerabilities)
+securefix fix report.json --severity-filter high
+
+# Only remediate SAST findings (skip CVE findings)
+securefix fix report.json --sast-only
+
+# Only remediate CVE findings (skip SAST findings)
+securefix fix report.json --cve-only
 ```
 
 ### Output Format
@@ -267,6 +318,27 @@ python securefix.py fix report.json --severity-filter
 }
 ```
 
+
+## Development
+
+### Running Tests
+
+```bash
+# Install development dependencies
+pip install -e ".[dev]"
+
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=securefix --cov-report=html
+
+# Run specific test categories
+pytest -m unit          # Unit tests only
+pytest -m integration   # Integration tests only
+pytest -m "not slow"    # Skip slow tests
+```
+
 ## Technical Approach
 
 ### Detection Pipeline
@@ -311,7 +383,7 @@ pytest --cov=securefix tests/
 - ollama: Local LLM support
 - click: CLI framework
 
-See `requirements.txt` && `requirements-dev.txt` for complete dependency list.
+See `pyproject.toml` for complete dependency list
 
 ## References
 

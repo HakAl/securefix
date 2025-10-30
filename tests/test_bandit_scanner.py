@@ -1,8 +1,8 @@
 import pytest
 import json
 from unittest.mock import patch, MagicMock
-from sast.bandit_scanner import scan
-from models import Finding, Type, Severity, Confidence
+from securefix.sast.bandit_scanner import scan
+from securefix.models import Finding, Type, Severity, Confidence
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ class TestBanditScanner:
 
     def test_scan_success_with_findings(self, mock_subprocess_success):
         """Test successful scan with vulnerabilities found"""
-        with patch('sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success):
+        with patch('securefix.sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success):
             findings = scan("/test/path", "medium", "medium")
 
         assert len(findings) == 2
@@ -71,14 +71,14 @@ class TestBanditScanner:
         mock_result.stdout = json.dumps({"results": []})
         mock_result.stderr = ""
 
-        with patch('sast.bandit_scanner.subprocess.run', return_value=mock_result):
+        with patch('securefix.sast.bandit_scanner.subprocess.run', return_value=mock_result):
             findings = scan("/test/path", "medium", "medium")
 
         assert len(findings) == 0
 
     def test_scan_bandit_not_installed(self):
         """Test when Bandit is not installed"""
-        with patch('sast.bandit_scanner.subprocess.run', side_effect=FileNotFoundError()):
+        with patch('securefix.sast.bandit_scanner.subprocess.run', side_effect=FileNotFoundError()):
             findings = scan("/test/path", "medium", "medium")
 
         assert findings == []
@@ -90,7 +90,7 @@ class TestBanditScanner:
         mock_result.stdout = ""
         mock_result.stderr = "Bandit error"
 
-        with patch('sast.bandit_scanner.subprocess.run', return_value=mock_result):
+        with patch('securefix.sast.bandit_scanner.subprocess.run', return_value=mock_result):
             findings = scan("/test/path", "medium", "medium")
 
         assert findings == []
@@ -102,14 +102,14 @@ class TestBanditScanner:
         mock_result.stdout = "not valid json"
         mock_result.stderr = ""
 
-        with patch('sast.bandit_scanner.subprocess.run', return_value=mock_result):
+        with patch('securefix.sast.bandit_scanner.subprocess.run', return_value=mock_result):
             findings = scan("/test", "medium", "medium")  # ← Add these two parameters
 
         assert findings == []
 
     def test_scan_command_construction(self, mock_subprocess_success):
         """Test that the correct command is constructed"""
-        with patch('sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success) as mock_run:
+        with patch('securefix.sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success) as mock_run:
             scan("/my/test/path", "medium", "medium")
 
         # Check the command that was called - include the additional parameters
@@ -131,14 +131,14 @@ class TestBanditScanner:
 
     def test_scan_handles_file_path(self, mock_subprocess_success):
         """Test scanning a single file"""
-        with patch('sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success):
+        with patch('securefix.sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success):
             findings = scan("/path/to/file.py", "medium", "medium")
 
         assert isinstance(findings, list)
 
     def test_scan_handles_directory_path(self, mock_subprocess_success):
         """Test scanning a directory"""
-        with patch('sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success):
+        with patch('securefix.sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success):
             findings = scan("/path/to/directory", "medium", "medium")
 
         assert isinstance(findings, list)
@@ -160,7 +160,7 @@ class TestBanditScanner:
         })
         mock_result.stderr = ""
 
-        with patch('sast.bandit_scanner.subprocess.run', return_value=mock_result):
+        with patch('securefix.sast.bandit_scanner.subprocess.run', return_value=mock_result):
             findings = scan("/test", "medium", "medium")
 
         # Snippet should not contain line number
@@ -185,7 +185,7 @@ class TestBanditScanner:
         })
         mock_result.stderr = ""
 
-        with patch('sast.bandit_scanner.subprocess.run', return_value=mock_result):
+        with patch('securefix.sast.bandit_scanner.subprocess.run', return_value=mock_result):
             findings = scan("/test", "medium", "medium")
 
         # Check that multiline snippet is preserved
