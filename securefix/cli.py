@@ -46,7 +46,7 @@ def scan(target, dependencies, output, severity, confidence):
     cve_findings = []
     if dependencies:
         click.echo(f"Scanning dependencies in {dependencies}...")
-        cve_findings = cve_scanner.scan_requirements(dependencies)
+        cve_findings = cve_scanner.scan_dependencies(dependencies)
         click.echo(f"Found {len(cve_findings)} vulnerable dependencies")
 
     # Create report
