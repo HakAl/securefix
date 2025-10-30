@@ -8,14 +8,14 @@ Covers:
 - Integration with LLM and retriever
 """
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 from langchain_core.documents import Document
-
-from remediation.remediation_engine import RemediationEngine, RemediationEngineError
+from securefix.remediation.remediation_engine import RemediationEngine, RemediationEngineError
 
 
 # Mock NLTK at module import time if it doesn't exist
-import remediation.remediation_engine as remediation_engine
+from securefix.remediation import remediation_engine
+
 if not hasattr(remediation_engine, 'word_tokenize'):
     remediation_engine.word_tokenize = lambda x: x.split()
 
@@ -376,7 +376,7 @@ class TestTokenStreamCallbackHandler:
 
     def test_callback_handler_calls_function(self):
         """Test that callback handler invokes the provided function"""
-        from remediation.remediation_engine import TokenStreamCallbackHandler
+        from securefix.remediation.remediation_engine import TokenStreamCallbackHandler
 
         tokens_received = []
 
@@ -393,7 +393,7 @@ class TestTokenStreamCallbackHandler:
 
     def test_callback_handler_with_kwargs(self):
         """Test that callback handler handles additional kwargs"""
-        from remediation.remediation_engine import TokenStreamCallbackHandler
+        from securefix.remediation.remediation_engine import TokenStreamCallbackHandler
 
         tokens_received = []
 

@@ -1,14 +1,13 @@
-import re
 import time
-from remediation.fix_knowledge_store import DocumentStore
+from securefix.remediation.fix_knowledge_store import DocumentStore
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.chains import RetrievalQA
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.runnables import RunnableSerializable
-from remediation.llm_factory import LLMConfig
-from remediation.fix_cache import SemanticQueryCache
-from typing import Any, Dict, List, Optional, Callable
+from securefix.remediation.llm_factory import LLMConfig
+from securefix.remediation.fix_cache import SemanticQueryCache
+from typing import Any, Dict, Optional, Callable
 
 # --- NLTK Integration for Preprocessing ---
 try:

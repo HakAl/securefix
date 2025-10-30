@@ -3,11 +3,11 @@ import click
 import json
 from datetime import datetime
 from pathlib import Path
-import sast.bandit_scanner as bandit_scanner
-import cve.scanner as cve_scanner
-from models import ScanResult
+import securefix.sast.bandit_scanner as bandit_scanner
+import securefix.cve.scanner as cve_scanner
+from securefix.models import ScanResult
 from json_repair import repair_json
-from remediation.corpus_builder import DocumentProcessor
+from securefix.remediation.corpus_builder import DocumentProcessor
 from typing import List, Dict
 
 
@@ -20,7 +20,7 @@ def cli():
 @cli.command()
 @click.argument('target', type=click.Path(exists=True))
 @click.option('--dependencies', '-d', type=click.Path(exists=True),
-              help='Path to requirements.txt for CVE scanning')
+              help='Path to requirements.txt or pyproject.toml for CVE scanning')
 @click.option('--output', '-o', type=click.Path(), default='report.json',
               help='Output JSON file (default: report.json)')
 @click.option('--severity', '-s', type=click.Choice(['low', 'medium', 'high'], case_sensitive=True),
@@ -46,7 +46,7 @@ def scan(target, dependencies, output, severity, confidence):
     cve_findings = []
     if dependencies:
         click.echo(f"Scanning dependencies in {dependencies}...")
-        cve_findings = cve_scanner.scan_requirements(dependencies)
+        cve_findings = cve_scanner.scan_dependencies(dependencies)
         click.echo(f"Found {len(cve_findings)} vulnerable dependencies")
 
     # Create report
@@ -172,10 +172,9 @@ def fix(report, output, interactive, llm_mode, model_name, no_cache, persist_dir
         severity_filter, sast_only, cve_only):
     """Generate security fixes for vulnerabilities in REPORT"""
     import time
-    from remediation.corpus_builder import DocumentProcessor
-    from remediation.fix_knowledge_store import DocumentStore
-    from remediation.llm_factory import LLMFactory
-    from remediation.remediation_engine import RemediationEngine
+    from securefix.remediation.corpus_builder import DocumentProcessor
+    from securefix.remediation.fix_knowledge_store import DocumentStore
+    from securefix.remediation.remediation_engine import RemediationEngine
 
     start_time = time.time()
 
@@ -380,8 +379,8 @@ def fix(report, output, interactive, llm_mode, model_name, no_cache, persist_dir
 
 def _configure_llm(mode: str, model_name: str = None):
     """Configure LLM based on mode and validate availability."""
-    from remediation.llm_factory import LLMFactory, check_ollama_available, check_google_api_key
-    from remediation.config import app_config
+    from securefix.remediation.llm_factory import LLMFactory, check_ollama_available, check_google_api_key
+    from securefix.remediation.config import app_config
 
     if mode == 'local':
         if not check_ollama_available():

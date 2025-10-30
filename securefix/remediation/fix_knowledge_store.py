@@ -1,5 +1,5 @@
 from typing import Any, List, Optional
-from remediation.vulnerability_retriever import create_hybrid_retrieval_pipeline
+from securefix.remediation.vulnerability_retriever import create_hybrid_retrieval_pipeline
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever

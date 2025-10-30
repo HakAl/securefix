@@ -4,7 +4,7 @@ import textwrap
 from click.testing import CliRunner
 from pathlib import Path
 from unittest.mock import patch
-from securefix import cli
+from securefix.cli import cli
 
 
 @pytest.fixture
@@ -57,7 +57,7 @@ class TestScanCommand:
         output_path = tmp_path / "report.json"
 
         # Mock config finder to avoid picking up any local bandit config
-        with patch('sast.bandit_scanner._find_bandit_config', return_value=None):
+        with patch('securefix.sast.bandit_scanner._find_bandit_config', return_value=None):
             result = runner.invoke(cli, [
                 'scan',
                 str(temp_vulnerable_file),
@@ -140,7 +140,7 @@ class TestScanCommand:
         output_path = tmp_path / "report.json"
 
         # Mock config finder to avoid picking up any local bandit config
-        with patch('sast.bandit_scanner._find_bandit_config', return_value=None):
+        with patch('securefix.sast.bandit_scanner._find_bandit_config', return_value=None):
             result = runner.invoke(cli, [
                 'scan',
                 str(temp_vulnerable_file),

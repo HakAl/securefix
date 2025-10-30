@@ -169,7 +169,7 @@ def download_corpus(corpus_path, skip_cwe, skip_owasp, skip_pypa):
     if success_count > 0:
         click.echo(f"\n✓ Corpus downloaded to {corpus_path}")
         click.echo("\nNext steps:")
-        click.echo("  1. Run: python securefix.py ingest")
+        click.echo("  1. Run: python cli.py ingest")
         click.echo("  2. This will build the vector database (takes 5-10 minutes)")
         click.echo("  3. Then you can scan and fix vulnerabilities!")
     else:

@@ -7,11 +7,11 @@ Covers:
 - Integration with vector stores and BM25
 """
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from langchain_core.documents import Document
 
 try:
-    from remediation.fix_knowledge_store import DocumentStore
+    from securefix.remediation.fix_knowledge_store import DocumentStore
 except ImportError:
     pytest.skip("fix_knowledge_store module not found", allow_module_level=True)
 
@@ -86,7 +86,7 @@ class TestDocumentStoreInitialization:
 class TestRetrieverCreation:
     """Test retriever creation and configuration"""
 
-    @patch('remediation.fix_knowledge_store.create_hybrid_retrieval_pipeline')
+    @patch('securefix.remediation.fix_knowledge_store.create_hybrid_retrieval_pipeline')
     def test_get_retriever_uses_factory(self, mock_factory, doc_store):
         """Test that get_retriever uses the factory function"""
         mock_retriever = Mock()
@@ -97,7 +97,7 @@ class TestRetrieverCreation:
         mock_factory.assert_called_once()
         assert retriever == mock_retriever
 
-    @patch('remediation.fix_knowledge_store.create_hybrid_retrieval_pipeline')
+    @patch('securefix.remediation.fix_knowledge_store.create_hybrid_retrieval_pipeline')
     def test_get_retriever_caches_instance(self, mock_factory, doc_store):
         """Test that retriever is cached after first build"""
         mock_retriever = Mock()
@@ -110,7 +110,7 @@ class TestRetrieverCreation:
         assert mock_factory.call_count == 1
         assert retriever1 is retriever2
 
-    @patch('remediation.fix_knowledge_store.create_hybrid_retrieval_pipeline')
+    @patch('securefix.remediation.fix_knowledge_store.create_hybrid_retrieval_pipeline')
     def test_get_retriever_passes_bm25_components(self, mock_factory, doc_store_with_bm25):
         """Test that BM25 components are passed to factory"""
         doc_store_with_bm25.get_retriever()
@@ -119,7 +119,7 @@ class TestRetrieverCreation:
         assert call_kwargs['bm25_index'] == doc_store_with_bm25.bm25_index
         assert call_kwargs['bm25_chunks'] == doc_store_with_bm25.bm25_chunks
 
-    @patch('remediation.fix_knowledge_store.create_hybrid_retrieval_pipeline')
+    @patch('securefix.remediation.fix_knowledge_store.create_hybrid_retrieval_pipeline')
     def test_get_retriever_enables_reranking(self, mock_factory, doc_store):
         """Test that reranking is enabled by default"""
         doc_store.get_retriever()
@@ -318,7 +318,7 @@ class TestDocumentStoreState:
         """Test that retriever is cached in _retriever attribute"""
         assert doc_store._retriever is None
 
-        with patch('remediation.fix_knowledge_store.create_hybrid_retrieval_pipeline') as mock_factory:
+        with patch('securefix.remediation.fix_knowledge_store.create_hybrid_retrieval_pipeline') as mock_factory:
             mock_retriever = Mock()
             mock_factory.return_value = mock_retriever
 

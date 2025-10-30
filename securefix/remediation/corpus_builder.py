@@ -1,5 +1,4 @@
 import os
-import json
 import logging
 import time
 import yaml
@@ -8,8 +7,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from typing import List, Dict, NamedTuple, Optional, Tuple
 
-from remediation.config import app_config
-from remediation.markdown_processor import process_markdown_file
+from securefix.remediation.config import app_config
+from securefix.remediation.markdown_processor import process_markdown_file
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_core.documents import Document

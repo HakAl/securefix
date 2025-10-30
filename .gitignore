@@ -64,7 +64,7 @@ chroma_db/
 model_cache/
 
 # Security corpus
-remediation/corpus/
+securefix/remediation/corpus/
 
 # LLM caches
 .ollama/

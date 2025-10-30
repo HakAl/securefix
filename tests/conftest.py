@@ -273,7 +273,7 @@ def mock_app_config():
 @pytest.fixture(autouse=True)
 def mock_bandit_config_finder():
     """Automatically mock config finder for all tests"""
-    with patch('sast.bandit_scanner._find_bandit_config', return_value=None):
+    with patch('securefix.sast.bandit_scanner._find_bandit_config', return_value=None):
         yield
 
 

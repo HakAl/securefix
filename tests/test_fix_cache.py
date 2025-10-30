@@ -8,11 +8,10 @@ Covers:
 - Embedding-based similarity
 """
 import pytest
-from unittest.mock import Mock, patch
-import numpy as np
+from unittest.mock import Mock
 
 try:
-    from remediation.fix_cache import SemanticQueryCache
+    from securefix.remediation.fix_cache import SemanticQueryCache
 except ImportError:
     pytest.skip("fix_cache module not found", allow_module_level=True)
 

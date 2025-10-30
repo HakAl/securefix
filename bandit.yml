@@ -12,7 +12,7 @@ exclude_dirs:
   - chroma_db
   - model_cache
   - remediation/corpus
-  - vulnerable       # Vulnerable code used for testing
+#  - vulnerable       # Vulnerable code used for testing
   - .pytest_cache
   - __pycache__
   - .idea

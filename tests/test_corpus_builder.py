@@ -10,16 +10,9 @@ Covers:
 """
 import os
 import pytest
-from unittest.mock import Mock, patch, MagicMock, call
-from pathlib import Path
+from unittest.mock import Mock, patch
 from langchain_core.documents import Document
-
-from remediation.corpus_builder import (
-    DocumentProcessor,
-    LoadResult,
-    ProgressEmbeddings,
-    create_progress_embeddings
-)
+from securefix.remediation.corpus_builder import DocumentProcessor, LoadResult, ProgressEmbeddings, create_progress_embeddings
 
 
 @pytest.fixture
@@ -290,7 +283,7 @@ class TestDocumentProcessing:
 class TestVectorStore:
     """Test vector store operations"""
 
-    @patch('remediation.corpus_builder.Chroma')
+    @patch('securefix.remediation.corpus_builder.Chroma')
     def test_create_vectorstore(self, mock_chroma, doc_processor, sample_security_documents):
         """Test vector store creation"""
         mock_vs = Mock()
@@ -301,7 +294,7 @@ class TestVectorStore:
         assert vs == mock_vs
         mock_chroma.from_documents.assert_called_once()
 
-    @patch('remediation.corpus_builder.Chroma')
+    @patch('securefix.remediation.corpus_builder.Chroma')
     def test_load_existing_vectorstore_success(self, mock_chroma, doc_processor):
         """Test loading existing vector store"""
         mock_vs = Mock()
@@ -328,7 +321,7 @@ class TestVectorStore:
         assert bm25_index is None
         assert bm25_chunks is None
 
-    @patch('remediation.corpus_builder.Chroma')
+    @patch('securefix.remediation.corpus_builder.Chroma')
     def test_load_existing_vectorstore_empty(self, mock_chroma, doc_processor):
         """Test loading empty vector store"""
         mock_vs = Mock()
