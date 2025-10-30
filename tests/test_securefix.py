@@ -3,6 +3,7 @@ import pytest
 import textwrap
 from click.testing import CliRunner
 from pathlib import Path
+from unittest.mock import patch
 from securefix import cli
 
 
@@ -16,8 +17,12 @@ def runner():
 def temp_vulnerable_file(tmp_path):
     """Create a temporary file with vulnerabilities"""
     file_path = tmp_path / "vulnerable.py"
+    # Use pickle which is reliably detected by Bandit (B301)
     file_path.write_text("""
-API_KEY = "AKIAIOSFODNN7EXAMPLE"
+import pickle
+
+def load_data(data):
+    return pickle.loads(data)
 
 def get_user(uid):
     cursor.execute(f"SELECT * FROM users WHERE id={uid}")
@@ -51,11 +56,13 @@ class TestScanCommand:
         """Should scan a single file and generate report"""
         output_path = tmp_path / "report.json"
 
-        result = runner.invoke(cli, [
-            'scan',
-            str(temp_vulnerable_file),
-            '--output', str(output_path)
-        ])
+        # Mock config finder to avoid picking up any local bandit config
+        with patch('sast.bandit_scanner._find_bandit_config', return_value=None):
+            result = runner.invoke(cli, [
+                'scan',
+                str(temp_vulnerable_file),
+                '--output', str(output_path)
+            ])
 
         assert result.exit_code == 0
         assert "Scanning" in result.output
@@ -132,12 +139,14 @@ class TestScanCommand:
         """Should scan both code and dependencies"""
         output_path = tmp_path / "report.json"
 
-        result = runner.invoke(cli, [
-            'scan',
-            str(temp_vulnerable_file),
-            '--dependencies', str(temp_requirements),
-            '--output', str(output_path)
-        ])
+        # Mock config finder to avoid picking up any local bandit config
+        with patch('sast.bandit_scanner._find_bandit_config', return_value=None):
+            result = runner.invoke(cli, [
+                'scan',
+                str(temp_vulnerable_file),
+                '--dependencies', str(temp_requirements),
+                '--output', str(output_path)
+            ])
 
         assert result.exit_code == 0
         assert "Scanning dependencies" in result.output

@@ -12,7 +12,7 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
 
@@ -269,6 +269,12 @@ def mock_app_config():
     config.reranker.batch_size = 32
 
     return config
+
+@pytest.fixture(autouse=True)
+def mock_bandit_config_finder():
+    """Automatically mock config finder for all tests"""
+    with patch('sast.bandit_scanner._find_bandit_config', return_value=None):
+        yield
 
 
 # ============================================================================

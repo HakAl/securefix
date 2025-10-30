@@ -47,7 +47,7 @@ class TestBanditScanner:
     def test_scan_success_with_findings(self, mock_subprocess_success):
         """Test successful scan with vulnerabilities found"""
         with patch('sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success):
-            findings = scan("/test/path")
+            findings = scan("/test/path", "medium", "medium")
 
         assert len(findings) == 2
         assert all(isinstance(f, Finding) for f in findings)
@@ -72,14 +72,14 @@ class TestBanditScanner:
         mock_result.stderr = ""
 
         with patch('sast.bandit_scanner.subprocess.run', return_value=mock_result):
-            findings = scan("/test/path")
+            findings = scan("/test/path", "medium", "medium")
 
         assert len(findings) == 0
 
     def test_scan_bandit_not_installed(self):
         """Test when Bandit is not installed"""
         with patch('sast.bandit_scanner.subprocess.run', side_effect=FileNotFoundError()):
-            findings = scan("/test/path")
+            findings = scan("/test/path", "medium", "medium")
 
         assert findings == []
 
@@ -91,7 +91,7 @@ class TestBanditScanner:
         mock_result.stderr = "Bandit error"
 
         with patch('sast.bandit_scanner.subprocess.run', return_value=mock_result):
-            findings = scan("/test/path")
+            findings = scan("/test/path", "medium", "medium")
 
         assert findings == []
 
@@ -103,16 +103,17 @@ class TestBanditScanner:
         mock_result.stderr = ""
 
         with patch('sast.bandit_scanner.subprocess.run', return_value=mock_result):
-            findings = scan("/test/path")
+            findings = scan("/test", "medium", "medium")  # ← Add these two parameters
 
         assert findings == []
 
     def test_scan_command_construction(self, mock_subprocess_success):
         """Test that the correct command is constructed"""
         with patch('sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success) as mock_run:
-            scan("/my/test/path")
+            scan("/my/test/path", "medium", "medium")
 
         # Check the command that was called - include the additional parameters
+        # Note: autouse fixture mocks _find_bandit_config to return None
         called_command = mock_run.call_args[0][0]
         assert called_command == [
             "bandit",
@@ -131,14 +132,14 @@ class TestBanditScanner:
     def test_scan_handles_file_path(self, mock_subprocess_success):
         """Test scanning a single file"""
         with patch('sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success):
-            findings = scan("/path/to/file.py")
+            findings = scan("/path/to/file.py", "medium", "medium")
 
         assert isinstance(findings, list)
 
     def test_scan_handles_directory_path(self, mock_subprocess_success):
         """Test scanning a directory"""
         with patch('sast.bandit_scanner.subprocess.run', return_value=mock_subprocess_success):
-            findings = scan("/path/to/directory")
+            findings = scan("/path/to/directory", "medium", "medium")
 
         assert isinstance(findings, list)
 
@@ -160,7 +161,7 @@ class TestBanditScanner:
         mock_result.stderr = ""
 
         with patch('sast.bandit_scanner.subprocess.run', return_value=mock_result):
-            findings = scan("/test")
+            findings = scan("/test", "medium", "medium")
 
         # Snippet should not contain line number
         assert findings[0].snippet
@@ -185,7 +186,7 @@ class TestBanditScanner:
         mock_result.stderr = ""
 
         with patch('sast.bandit_scanner.subprocess.run', return_value=mock_result):
-            findings = scan("/test")
+            findings = scan("/test", "medium", "medium")
 
         # Check that multiline snippet is preserved
         assert findings[0].snippet
@@ -210,7 +211,9 @@ def load_data(filename):
         return pickle.load(f)  # B301: pickle usage
 """)
 
-        findings = scan(str(test_file))
+        # Use "low" severity to ensure we catch all vulnerabilities
+        # autouse fixture mocks _find_bandit_config to return None
+        findings = scan(str(test_file), "low", "low")
 
         # Should find the pickle vulnerability
         assert len(findings) > 0
@@ -224,7 +227,8 @@ def add(a, b):
     return a + b
 """)
 
-        findings = scan(str(test_file))
+        # autouse fixture mocks _find_bandit_config to return None
+        findings = scan(str(test_file), "medium", "medium")
 
         # Should find no vulnerabilities (or very few/low severity)
         assert isinstance(findings, list)
