@@ -200,6 +200,22 @@ securefix fix report.json --sast-only
 securefix fix report.json --cve-only
 ```
 
+### Docker
+
+```bash
+# Build
+docker build -t securefix:latest .
+
+# Or with compose
+docker-compose build
+
+# Scan
+docker-compose run --rm securefix scan /scan --output /data/reports/report.json
+
+# Fix (LlamaCPP)
+docker-compose run --rm securefix fix /data/reports/report.json --llm-mode llamacpp --output /data/fixes/fixes.json
+```
+
 ### Output Format
 
 **Vulnerability Report**:

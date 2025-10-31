@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  securefix:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: securefix:latest
+    container_name: securefix
+
+    # Mount volumes for persistence and model access
+    volumes:
+      # Scan target (mount your code here)
+      - ./vulnerable:/scan:ro
+
+      # Persistent data
+      - ./data/reports:/data/reports
+      - ./data/fixes:/data/fixes
+      - ./data/chroma_db:/data/chroma_db
+
+      # LlamaCPP models (mount your GGUF models here)
+      - ./models:/models:ro
+
+      # Optional: Custom corpus
+      # - ./custom_corpus:/securefix/remediation/corpus:ro
+
+    # Environment variables
+    environment:
+      # LLM Configuration
+      - MODE=local
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+
+      # LlamaCPP Settings (if using llamacpp mode)
+      - LLAMACPP_MODEL_PATH=/models/qwen2.5-3b-instruct-q4_k_m.gguf
+      - LLAMACPP_N_CTX=2048
+      - LLAMACPP_N_THREADS=14
+      - LLAMACPP_N_GPU_LAYERS=0
+      - LLAMACPP_N_BATCH=512
+
+      # Model name (for ollama mode)
+      - MODEL_NAME=llama3.2:3b
+
+      # Vector DB settings
+      - VECTOR_K=4
+      - VECTOR_FETCH_K=12
+      - BM25_TOP_K=2
+
+    # For interactive usage
+    stdin_open: true
+    tty: true
+
+    # Resource limits (adjust based on your hardware)
+    deploy:
+      resources:
+        limits:
+          cpus: '14'
+          memory: 16G
+        reservations:
+          cpus: '8'
+          memory: 8G
+
+  # Optional: Ollama service (if using Ollama mode)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    profiles:
+      - ollama  # Only start with --profile ollama
+
+volumes:
+  ollama_data:

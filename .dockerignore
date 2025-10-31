@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.log
+
+# Data files (will be mounted as volumes)
+chroma_db/
+models/
+*.gguf
+*.bin
+*.safetensors
+
+# Reports and outputs
+report.json
+report_*.json
+fixes.json
+fixes_*.json
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Temp files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Vulnerable test code
+vulnerable/
