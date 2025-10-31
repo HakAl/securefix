@@ -5,7 +5,7 @@ from langchain.chains import RetrievalQA
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.runnables import RunnableSerializable
-from securefix.remediation.llm_factory import LLMConfig
+from securefix.remediation.llm.llm_factory import LLMConfig
 from securefix.remediation.fix_cache import SemanticQueryCache
 from typing import Any, Dict, Optional, Callable
 
@@ -196,6 +196,14 @@ class RemediationEngine:
                 "\n  1. Verify your API key is valid"
                 "\n  2. Check your internet connection"
                 "\n  3. Ensure you have API quota remaining"
+            )
+        elif "llamacpp" in llm_name:
+            base_msg += (
+                "\n\n Troubleshooting tips for LlamaCPP:"
+                "\n  1. Verify the model file exists and is a valid GGUF file"
+                "\n  2. Check if you have enough RAM/VRAM for the model"
+                "\n  3. Try reducing n_ctx or max_tokens if running out of memory"
+                "\n  4. Ensure llama-cpp-python is properly installed"
             )
 
         return base_msg

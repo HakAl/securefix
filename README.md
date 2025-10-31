@@ -79,6 +79,9 @@ GOOGLE_API_KEY=your_api_key_here
 
 # Optional: Default model configuration
 MODEL_NAME=llama3.2:3b
+
+# With environment variable
+export LLAMACPP_MODEL_PATH=./models/llama-3.2-3b.gguf
 ```
 
 ### LLM Setup
@@ -105,8 +108,10 @@ MODEL_NAME=llama3.2:3b
 
 **Local Mode (Ollama)**:
 ```bash
-# Install Ollama from ollama.ai
+# Install Ollama from ollama.com
 ollama pull llama3.2:3b
+# LlamaCPP (alternative local option)
+# Install with: pip install securefix[llamacpp]
 ```
 
 **Cloud Mode (Google Gen AI)**:
@@ -168,6 +173,9 @@ securefix fix report.json --interactive
 # Choose LLM backend
 securefix fix report.json --llm-mode local    # Ollama (default)
 securefix fix report.json --llm-mode google   # Google Gemini
+securefix fix report.json --llm-mode llamacpp # LLamacpp
+# With CLI option
+securefix fix report.json --llm-mode llamacpp --model-path ./models/llama-3.2-3b.gguf
 
 # Specify model name
 securefix fix report.json --model-name llama3.2:3b

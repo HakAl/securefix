@@ -97,4 +97,11 @@ Desktop.ini
 temp/
 tmp/
 
+# Test files
 vulnerable/
+
+# LLM Models
+*.gguf
+*.bin
+models/
+*.safetensors

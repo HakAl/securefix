@@ -153,10 +153,12 @@ def ingest(corpus_path, rebuild, persist_dir):
               help='Output JSON file with remediation suggestions (default: fixes.json)')
 @click.option('--interactive', '-i', is_flag=True,
               help='Review and apply fixes interactively')
-@click.option('--llm-mode', type=click.Choice(['local', 'google'], case_sensitive=False),
+@click.option('--llm-mode', type=click.Choice(['local', 'google', 'llamacpp'], case_sensitive=False),
               default='local', help='LLM backend to use (default: local)')
 @click.option('--model-name', type=str,
-              help='Override default model name')
+              help='Override default model name (for ollama/google)')
+@click.option('--model-path', type=click.Path(exists=True),
+              help='Path to GGUF model file (for llamacpp mode)')
 @click.option('--no-cache', is_flag=True,
               help='Disable semantic caching')
 @click.option('--persist-dir', type=click.Path(),
@@ -168,7 +170,7 @@ def ingest(corpus_path, rebuild, persist_dir):
               help='Only remediate SAST findings (skip CVE findings)')
 @click.option('--cve-only', is_flag=True,
               help='Only remediate CVE findings (skip SAST findings)')
-def fix(report, output, interactive, llm_mode, model_name, no_cache, persist_dir,
+def fix(report, output, interactive, llm_mode, model_name, model_path, no_cache, persist_dir,
         severity_filter, sast_only, cve_only):
     """Generate security fixes for vulnerabilities in REPORT"""
     import time
@@ -241,7 +243,7 @@ def fix(report, output, interactive, llm_mode, model_name, no_cache, persist_dir
         return
 
     try:
-        llm_config = _configure_llm(llm_mode, model_name)
+        llm_config = _configure_llm(llm_mode, model_name, model_path)
         if not llm_config:
             return
     except Exception as e:
@@ -377,9 +379,16 @@ def fix(report, output, interactive, llm_mode, model_name, no_cache, persist_dir
     click.echo(f"\nResults saved to: {output}")
 
 
-def _configure_llm(mode: str, model_name: str = None):
+def _configure_llm(mode: str, model_name: str = None, model_path: str = None):
     """Configure LLM based on mode and validate availability."""
-    from securefix.remediation.llm_factory import LLMFactory, check_ollama_available, check_google_api_key
+    from securefix.remediation.llm import (
+        LLMFactory,
+        LLAMACPP_AVAILABLE,
+        check_ollama_available,
+        check_google_api_key,
+        check_llamacpp_available,
+        validate_gguf_model,
+    )
     from securefix.remediation.config import app_config
 
     if mode == 'local':
@@ -404,6 +413,29 @@ def _configure_llm(mode: str, model_name: str = None):
 
         model = model_name or app_config.config.model_name or "gemini-2.0-flash-lite"
         return LLMFactory.create_google(api_key=api_key, model_name=model)
+
+    elif mode == 'llamacpp':
+        if not LLAMACPP_AVAILABLE:
+            click.echo("Error: llama-cpp-python is not installed", err=True)
+            click.echo("Install with: pip install securefix[llamacpp]", err=True)
+            return None
+
+        # Get model path from CLI arg or environment variable
+        model_file = model_path or os.getenv('LLAMACPP_MODEL_PATH')
+
+        if not model_file:
+            click.echo("Error: Model path not specified", err=True)
+            click.echo("Use --model-path or set LLAMACPP_MODEL_PATH environment variable", err=True)
+            return None
+
+        # Validate the model file
+        is_valid, error_msg = validate_gguf_model(model_file)
+        if not is_valid:
+            click.echo(f"Error: {error_msg}", err=True)
+            click.echo("Download GGUF models from: https://huggingface.co/models?library=gguf", err=True)
+            return None
+
+        return LLMFactory.create_llamacpp(model_path=model_file)
 
     return None
 

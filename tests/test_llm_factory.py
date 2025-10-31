@@ -2,11 +2,13 @@ import pytest
 from unittest.mock import Mock, patch
 import sys
 import os
-from securefix.remediation.llm_factory import LLMFactory, GoogleGenAIConfig, OllamaConfig, check_ollama_available
 
 # Add parent directory to path so we can import modules from remediation/
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from securefix.remediation.llm.llm_factory import LLMFactory
+from securefix.remediation.llm.llm_google import GoogleGenAIConfig, check_google_api_key
+from securefix.remediation.llm.llm_ollama import OllamaConfig, check_ollama_available, get_available_ollama_models
 
 
 class TestLLMFactory:
@@ -222,6 +224,57 @@ class TestUtilityFunctions:
         mock_ollama_list.side_effect = Exception("Connection failed")
 
         result = check_ollama_available()
+
+        assert result is False
+
+    @patch('ollama.list')
+    def test_get_available_ollama_models_success(self, mock_ollama_list):
+        """Test getting available Ollama models."""
+        mock_ollama_list.return_value = {
+            'models': [
+                {'name': 'llama3.2:3b'},
+                {'name': 'phi3:mini'},
+            ]
+        }
+
+        result = get_available_ollama_models()
+
+        assert isinstance(result, list)
+        assert 'llama3.2:3b' in result
+        assert 'phi3:mini' in result
+
+    @patch('ollama.list')
+    def test_get_available_ollama_models_connection_error(self, mock_ollama_list):
+        """Test getting models when Ollama is not available."""
+        mock_ollama_list.side_effect = Exception("Connection refused")
+
+        result = get_available_ollama_models()
+
+        assert result == []
+
+    def test_check_google_api_key_invalid(self):
+        """Test Google API key validation with invalid key."""
+        # Empty or clearly invalid keys should return False
+        assert check_google_api_key("") is False
+        assert check_google_api_key("   ") is False
+        assert check_google_api_key(None) is False
+
+    @patch('google.generativeai.configure')
+    def test_check_google_api_key_valid(self, mock_configure):
+        """Test Google API key validation with valid key."""
+        mock_configure.return_value = None
+
+        result = check_google_api_key("valid-test-key")
+
+        assert result is True
+        mock_configure.assert_called_once()
+
+    @patch('google.generativeai.configure')
+    def test_check_google_api_key_exception(self, mock_configure):
+        """Test Google API key validation when exception occurs."""
+        mock_configure.side_effect = Exception("Invalid API key")
+
+        result = check_google_api_key("invalid-key")
 
         assert result is False
 
