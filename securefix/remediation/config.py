@@ -10,13 +10,24 @@ class Config:
     google_api_key: Optional[str] = None
     mode: str = "local"
     model_name: Optional[str] = None
+    llama_cpp_model_path: Optional[str] = None
+    # LlamaCPP specific settings
+    llama_cpp_n_ctx: int = 2048
+    llama_cpp_n_threads: Optional[int] = None  # Auto-detect if None
+    llama_cpp_n_gpu_layers: int = 0
+    llama_cpp_n_batch: int = 512
 
     @classmethod
     def from_env(cls) -> "Config":
         return cls(
             google_api_key=os.getenv("GOOGLE_API_KEY"),
             mode=os.getenv("MODE", "local"),
-            model_name=os.getenv("MODEL_NAME")
+            model_name=os.getenv("MODEL_NAME"),
+            llama_cpp_model_path=os.getenv("LLAMACPP_MODEL_PATH"),
+            llama_cpp_n_ctx=int(os.getenv("LLAMACPP_N_CTX", 2048)),
+            llama_cpp_n_threads=int(os.getenv("LLAMACPP_N_THREADS")) if os.getenv("LLAMACPP_N_THREADS") else None,
+            llama_cpp_n_gpu_layers=int(os.getenv("LLAMACPP_N_GPU_LAYERS", 0)),
+            llama_cpp_n_batch=int(os.getenv("LLAMACPP_N_BATCH", 512)),
         )
 
 

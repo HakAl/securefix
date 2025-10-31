@@ -420,8 +420,8 @@ def _configure_llm(mode: str, model_name: str = None, model_path: str = None):
             click.echo("Install with: pip install securefix[llamacpp]", err=True)
             return None
 
-        # Get model path from CLI arg or environment variable
-        model_file = model_path or os.getenv('LLAMACPP_MODEL_PATH')
+        # Get model path from CLI arg, env var, or config
+        model_file = model_path or app_config.config.llama_cpp_model_path
 
         if not model_file:
             click.echo("Error: Model path not specified", err=True)
@@ -430,12 +430,20 @@ def _configure_llm(mode: str, model_name: str = None, model_path: str = None):
 
         # Validate the model file
         is_valid, error_msg = validate_gguf_model(model_file)
+
         if not is_valid:
             click.echo(f"Error: {error_msg}", err=True)
             click.echo("Download GGUF models from: https://huggingface.co/models?library=gguf", err=True)
             return None
 
-        return LLMFactory.create_llamacpp(model_path=model_file)
+        # Create config using settings from app_config
+        return LLMFactory.create_llamacpp(
+            model_path=model_file,
+            n_ctx=app_config.config.llama_cpp_n_ctx,
+            n_threads=app_config.config.llama_cpp_n_threads,
+            n_gpu_layers=app_config.config.llama_cpp_n_gpu_layers,
+            n_batch=app_config.config.llama_cpp_n_batch,
+        )
 
     return None
 
@@ -464,12 +472,31 @@ def _parse_fix_response(response: str) -> dict:
     # Try direct parse first
     try:
         data = json.loads(response)
-        return data
+
+        # Handle if LLM returns a list instead of dict
+        if isinstance(data, list):
+            if len(data) > 0 and isinstance(data[0], dict):
+                return data[0]  # Take first dict from list
+            else:
+                return None
+
+        return data if isinstance(data, dict) else None
+
     except json.JSONDecodeError:
         # Use json-repair for messy LLM output
         try:
             repaired = repair_json(response)
-            return json.loads(repaired)
+            data = json.loads(repaired)
+
+            # Handle list here too
+            if isinstance(data, list):
+                if len(data) > 0 and isinstance(data[0], dict):
+                    return data[0]
+                else:
+                    return None
+
+            return data if isinstance(data, dict) else None
+
         except Exception as e:
             click.echo(f"  Warning: Could not parse fix response: {e}", err=True)
             return None

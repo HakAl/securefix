@@ -20,6 +20,7 @@ class LlamaCPPConfig(LLMConfig):
     top_p: float = 0.9
     repeat_penalty: float = 1.1
     verbose: bool = False
+    n_batch: int = 512
 
     def create_llm(self) -> BaseLanguageModel:
         """Create LlamaCPP LLM instance."""
@@ -51,6 +52,7 @@ class LlamaCPPConfig(LLMConfig):
             top_p=self.top_p,
             repeat_penalty=self.repeat_penalty,
             verbose=self.verbose,
+            n_batch=self.n_batch
         )
 
     def get_prompt_template(self) -> PromptTemplate:

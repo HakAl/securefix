@@ -4,13 +4,17 @@ import os
 from typing import List, Optional
 from securefix.models import Finding
 from securefix.sast.bandit_mapper import convert_bandit_result
+from pathlib import Path
 
 
 def _find_bandit_config() -> Optional[str]:
     config_files = ['.bandit', 'bandit.yml', 'bandit.yaml', '.bandit.yml', '.bandit.yaml']
+    config_dir = Path('config')
+
     for config_file in config_files:
-        if os.path.exists(config_file):
-            return config_file
+        config_path = config_dir / config_file
+        if config_path.exists():
+            return str(config_path)
     return None
 
 

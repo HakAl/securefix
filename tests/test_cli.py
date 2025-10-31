@@ -753,12 +753,16 @@ class TestLLMConfiguration:
         assert config is None
 
     @patch('securefix.remediation.llm.LLAMACPP_AVAILABLE', True)
+    @patch.dict(os.environ, {}, clear=True)  # Clear all env vars
     def test_configure_llm_llamacpp_no_model_path(self):
         """Should fail if model path not provided"""
         from securefix.cli import _configure_llm
+        from securefix.remediation.config import app_config
 
-        with patch.dict(os.environ, {}, clear=True):
-            config = _configure_llm('llamacpp')
+        # Reset app_config to not have the path
+        app_config.config.llama_cpp_model_path = None
+
+        config = _configure_llm('llamacpp')
 
         assert config is None
 
@@ -776,17 +780,22 @@ class TestLLMConfiguration:
 
     @patch('securefix.remediation.llm.LLAMACPP_AVAILABLE', True)
     @patch('securefix.remediation.llm.validate_gguf_model')
-    @patch.dict(os.environ, {'LLAMACPP_MODEL_PATH': '/path/to/model.gguf'})
+    @patch.dict(os.environ, {'LLAMACPP_MODEL_PATH': '/path/to/model.gguf'}, clear=True)
     def test_configure_llm_llamacpp_env_variable(self, mock_validate):
         """Should use LLAMACPP_MODEL_PATH environment variable"""
         from securefix.cli import _configure_llm
+        from securefix.remediation.config import Config
 
-        mock_validate.return_value = (True, None)
+        # Reload config from env to pick up the mocked env var
+        test_config = Config.from_env()
 
-        config = _configure_llm('llamacpp')
+        with patch('securefix.remediation.config.app_config.config', test_config):
+            mock_validate.return_value = (True, None)
 
-        assert config is not None
-        mock_validate.assert_called_once_with('/path/to/model.gguf')
+            config = _configure_llm('llamacpp')
+
+            assert config is not None
+            mock_validate.assert_called_once_with('/path/to/model.gguf')
 
 
 class TestUtilityFunctions:

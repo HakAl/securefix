@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from unittest.mock import Mock, patch
 from pathlib import Path
@@ -90,6 +92,7 @@ class TestLlamaCPPConfig:
         with pytest.raises(FileNotFoundError, match="Model file not found"):
             config.create_llm()
 
+    @patch.dict(os.environ, {}, clear=True)  # Clear env vars for clean test
     def test_default_parameters(self, tmp_path):
         """Test that default parameters are set correctly."""
         model_file = tmp_path / "test-model.gguf"
@@ -100,7 +103,7 @@ class TestLlamaCPPConfig:
         assert config.temperature == 0.1
         assert config.max_tokens == 600
         assert config.n_ctx == 2048
-        assert config.n_threads is None
+        assert config.n_threads is None  # Should be None by default
         assert config.n_gpu_layers == 0
         assert config.top_k == 40
         assert config.top_p == 0.9
