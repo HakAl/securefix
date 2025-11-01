@@ -31,7 +31,7 @@ services:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
 
       # LlamaCPP Settings (if using llamacpp mode)
-      - LLAMACPP_MODEL_PATH=/models/qwen2.5-3b-instruct-q4_k_m.gguf
+      - LLAMACPP_MODEL_PATH=/models/qwen-sast-q4_k_m.gguf
       - LLAMACPP_N_CTX=2048
       - LLAMACPP_N_THREADS=14
       - LLAMACPP_N_GPU_LAYERS=0

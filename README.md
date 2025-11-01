@@ -81,7 +81,7 @@ GOOGLE_API_KEY=your_api_key_here
 MODEL_NAME=llama3.2:3b
 
 # With environment variables
-LLAMACPP_MODEL_PATH=./models/qwen2.5-3b-instruct-q4_k_m.gguf
+LLAMACPP_MODEL_PATH=./models/qwen-sast-q4_k_m.gguf
 LLAMACPP_N_CTX=2048
 LLAMACPP_N_THREADS=14
 LLAMACPP_N_GPU_LAYERS=1

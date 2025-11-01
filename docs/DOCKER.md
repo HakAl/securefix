@@ -48,11 +48,11 @@ docker run --rm \
 docker run --rm \
   -v $(pwd)/models:/models:ro \
   -v $(pwd)/data:/data \
-  -e LLAMACPP_MODEL_PATH=/models/qwen2.5-3b-instruct-q4_k_m.gguf \
+  -e LLAMACPP_MODEL_PATH=/models/qwen-sast-q4_k_m.gguf \
   -e LLAMACPP_N_THREADS=14 \
   securefix:latest fix /data/reports/report.json \
     --llm-mode llamacpp \
-    --model-path /models/qwen2.5-3b-instruct-q4_k_m.gguf \
+    --model-path /models/qwen-sast-q4_k_m.gguf \
     --output /data/fixes/fixes.json
 ```
 
@@ -94,7 +94,7 @@ docker run --rm \
 ├── docker-compose.yml
 ├── .dockerignore
 ├── models/                          # Mount your GGUF models here
-│   └── qwen2.5-3b-instruct-q4_k_m.gguf
+│   └── qwen-sast-q4_k_m.gguf
 ├── vulnerable/                      # Your code to scan
 │   └── app.py
 ├── data/

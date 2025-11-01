@@ -35,6 +35,7 @@ For more installation options, see [llama-cpp-python documentation](https://gith
 ## Downloading Models
 
 You'll need to download GGUF model files. Here are some recommended sources:
+Try this specialist: https://huggingface.co/cmonplz/Qwen-3B-SAST-Python-Remediation-GGUF
 
 ### Recommended Models for Security Analysis
 
