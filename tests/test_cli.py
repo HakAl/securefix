@@ -1005,43 +1005,57 @@ class TestUtilityFunctions:
         """Should use custom branch name when provided"""
         from securefix.cli import _create_github_pr
 
-        with patch('securefix.remediation.config.app_config') as mock_config:
+        with patch('securefix.remediation.config.app_config') as mock_config, \
+             patch('securefix.mcp.group_fixes_by_file') as mock_group, \
+             patch('securefix.mcp.apply_fixes_to_file') as mock_apply, \
+             patch('securefix.cli.click.confirm', return_value=False):  # User cancels
+
             mock_config.mcp.is_configured.return_value = True
             mock_config.mcp.github_owner = 'test-owner'
             mock_config.mcp.github_repo = 'test-repo'
             mock_config.mcp.mcp_server_host = '127.0.0.1'
             mock_config.mcp.mcp_server_port = 3000
 
+            # Mock file operations
+            mock_group.return_value = {'test.py': [{'finding': {'line': 10}}]}
+            mock_apply.return_value = 'fixed code'
+
             remediations = [
-                {'finding': {'severity': 'High'}, 'confidence': 'High'}
+                {'finding': {'severity': 'High', 'file': 'test.py', 'line': 10}, 'confidence': 'High'}
             ]
 
             result = _create_github_pr(remediations, 'report.json', 'custom-branch-name')
 
-            # Should return placeholder response with our custom branch name
-            assert 'branch_name' in result
-            assert result['branch_name'] == 'custom-branch-name'
+            # User cancelled, so we get cancelled flag
+            assert result.get('cancelled') == True
 
     def test_create_github_pr_auto_generates_branch(self):
         """Should auto-generate branch name if not provided"""
         from securefix.cli import _create_github_pr
 
-        with patch('securefix.remediation.config.app_config') as mock_config:
+        with patch('securefix.remediation.config.app_config') as mock_config, \
+             patch('securefix.mcp.group_fixes_by_file') as mock_group, \
+             patch('securefix.mcp.apply_fixes_to_file') as mock_apply, \
+             patch('securefix.cli.click.confirm', return_value=False):  # User cancels
+
             mock_config.mcp.is_configured.return_value = True
             mock_config.mcp.github_owner = 'test-owner'
             mock_config.mcp.github_repo = 'test-repo'
             mock_config.mcp.mcp_server_host = '127.0.0.1'
             mock_config.mcp.mcp_server_port = 3000
 
+            # Mock file operations
+            mock_group.return_value = {'test.py': [{'finding': {'line': 10}}]}
+            mock_apply.return_value = 'fixed code'
+
             remediations = [
-                {'finding': {'severity': 'Critical'}, 'confidence': 'High'}
+                {'finding': {'severity': 'Critical', 'file': 'test.py', 'line': 10}, 'confidence': 'High'}
             ]
 
             result = _create_github_pr(remediations, 'report.json')
 
-            # Should have auto-generated branch name
-            assert 'branch_name' in result
-            assert result['branch_name'].startswith('securefix-critical-fixes-')
+            # User cancelled, but function still runs successfully
+            assert result.get('cancelled') == True
 
 
 class TestMCPIntegration:

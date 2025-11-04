@@ -643,6 +643,140 @@ def _generate_branch_name(remediations: List[Dict]) -> str:
         return f"securefix-automated-fixes-{timestamp}"
 
 
+async def _create_pr_via_mcp(
+    branch_name: str,
+    commit_message: str,
+    pr_title: str,
+    pr_body: str,
+    changed_files: Dict[str, str]
+) -> dict:
+    """
+    Execute MCP operations to create a GitHub PR.
+
+    Args:
+        branch_name: Name for the new branch
+        commit_message: Commit message for changes
+        pr_title: Pull request title
+        pr_body: Pull request body/description
+        changed_files: Dict mapping file paths to updated content
+
+    Returns:
+        dict with 'success', 'pr_url', 'pr_number', and optionally 'error'
+    """
+    from securefix.remediation.config import app_config
+    import base64
+
+    try:
+        from fastmcp import FastMCP
+    except ImportError:
+        return {
+            'success': False,
+            'error': 'fastmcp not installed. Install with: pip install "securefix[mcp]"'
+        }
+
+    client = FastMCP("github-mcp-server")
+
+    try:
+        # Connect to MCP server
+        click.echo("\n  → Connecting to github-mcp-server...")
+        await client.connect(
+            host=app_config.mcp.mcp_server_host,
+            port=app_config.mcp.mcp_server_port
+        )
+        click.echo("  ✓ Connected")
+
+        # Step 1: Get default branch to branch from
+        click.echo(f"\n  → Creating branch '{branch_name}'...")
+        # Use 'main' as default, or could query repo to get default branch
+        base_branch = "main"
+
+        branch_result = await client.call_tool(
+            "create_branch",
+            arguments={
+                "owner": app_config.mcp.github_owner,
+                "repo": app_config.mcp.github_repo,
+                "branch": branch_name,
+                "from_branch": base_branch
+            }
+        )
+        click.echo(f"  ✓ Branch created from '{base_branch}'")
+
+        # Step 2: Create or update each file (this commits automatically)
+        click.echo(f"\n  → Committing {len(changed_files)} file(s)...")
+
+        for i, (file_path, content) in enumerate(changed_files.items(), 1):
+            click.echo(f"    [{i}/{len(changed_files)}] {file_path}...", nl='')
+
+            # github-mcp-server expects base64-encoded content for binary safety
+            content_encoded = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+
+            await client.call_tool(
+                "create_or_update_file",
+                arguments={
+                    "owner": app_config.mcp.github_owner,
+                    "repo": app_config.mcp.github_repo,
+                    "path": file_path,
+                    "content": content_encoded,
+                    "message": f"{commit_message} - {file_path}",
+                    "branch": branch_name
+                }
+            )
+            click.echo(" ✓")
+
+        click.echo(f"  ✓ All files committed")
+
+        # Step 3: Create pull request
+        click.echo(f"\n  → Creating pull request...")
+
+        pr_result = await client.call_tool(
+            "create_pull_request",
+            arguments={
+                "owner": app_config.mcp.github_owner,
+                "repo": app_config.mcp.github_repo,
+                "title": pr_title,
+                "body": pr_body,
+                "head": branch_name,
+                "base": base_branch
+            }
+        )
+
+        # Extract PR details from result
+        pr_url = pr_result.get('html_url', '')
+        pr_number = pr_result.get('number', 0)
+
+        click.echo(f"  ✓ Pull request created!")
+        click.echo(f"\n{'=' * 70}")
+        click.echo("SUCCESS")
+        click.echo("=" * 70)
+        click.echo(f"PR #{pr_number}: {pr_url}")
+        click.echo("=" * 70)
+
+        return {
+            'success': True,
+            'pr_url': pr_url,
+            'pr_number': pr_number,
+            'branch_name': branch_name
+        }
+
+    except ConnectionError as e:
+        return {
+            'success': False,
+            'error': f'Could not connect to MCP server at {app_config.mcp.mcp_server_host}:{app_config.mcp.mcp_server_port}. '
+                     f'Is github-mcp-server running? Error: {str(e)}'
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f'Failed to create PR via MCP: {str(e)}'
+        }
+    finally:
+        # Disconnect from MCP server
+        try:
+            await client.disconnect()
+        except Exception:
+            pass  # Ignore disconnect errors
+
+
 def _create_github_pr(remediations: List[Dict], report_path: str, branch_name: str = None) -> dict:
     """
     Create a GitHub Pull Request with suggested fixes via MCP.
@@ -744,71 +878,21 @@ def _create_github_pr(remediations: List[Dict], report_path: str, branch_name: s
                 'cancelled': True
             }
 
-        # Step 4: TODO - Connect to MCP server and create PR
+        # Step 4: Connect to MCP server and create PR
         click.echo("\n[MCP Integration] Creating pull request...")
         click.echo(f"  Server: {app_config.mcp.mcp_server_host}:{app_config.mcp.mcp_server_port}")
 
-        # Placeholder for actual MCP client calls
-        # TODO: Implement fastmcp client integration
-        # from fastmcp import FastMCP
-        # client = FastMCP(server_url=f"http://{host}:{port}")
-        #
-        # Step 4a: Create branch
-        # client.call_tool("createBranch", {
-        #     "owner": app_config.mcp.github_owner,
-        #     "repo": app_config.mcp.github_repo,
-        #     "branch": branch_name,
-        #     "from_branch": "main"
-        # })
-        #
-        # Step 4b: Create commit with changes
-        # client.call_tool("createCommit", {
-        #     "owner": app_config.mcp.github_owner,
-        #     "repo": app_config.mcp.github_repo,
-        #     "branch": branch_name,
-        #     "message": commit_message,
-        #     "files": changed_files
-        # })
-        #
-        # Step 4c: Push branch
-        # client.call_tool("push", {
-        #     "owner": app_config.mcp.github_owner,
-        #     "repo": app_config.mcp.github_repo,
-        #     "branch": branch_name
-        # })
-        #
-        # Step 4d: Create pull request
-        # pr_result = client.call_tool("createPullRequest", {
-        #     "owner": app_config.mcp.github_owner,
-        #     "repo": app_config.mcp.github_repo,
-        #     "title": pr_title,
-        #     "body": pr_body,
-        #     "head": branch_name,
-        #     "base": "main"
-        # })
-        #
-        # return {
-        #     'success': True,
-        #     'pr_url': pr_result['html_url'],
-        #     'pr_number': pr_result['number']
-        # }
+        # Run async MCP operations
+        import asyncio
+        pr_result = asyncio.run(_create_pr_via_mcp(
+            branch_name=branch_name,
+            commit_message=commit_message,
+            pr_title=pr_title,
+            pr_body=pr_body,
+            changed_files=changed_files
+        ))
 
-        return {
-            'success': False,
-            'error': 'MCP client integration not yet implemented (Phase 2)',
-            'branch_name': branch_name,
-            'changed_files': list(changed_files.keys()),
-            'commit_message': commit_message,
-            'pr_title': pr_title,
-            'todo': [
-                'Install and run github-mcp-server',
-                'Implement fastmcp client calls',
-                'Connect to MCP server',
-                f'Create branch: {branch_name}',
-                'Apply fixes and commit',
-                'Create pull request'
-            ]
-        }
+        return pr_result
 
     except Exception as e:
         return {

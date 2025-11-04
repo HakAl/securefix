@@ -128,12 +128,72 @@ curl http://localhost:3000/health
 
 ## Usage in SecureFix
 
-Once configured, SecureFix can automatically create PRs for high-confidence fixes:
+Once configured, SecureFix will prompt you to create a GitHub PR after generating fixes for High/Critical vulnerabilities with High confidence.
+
+### Workflow Example
 
 ```bash
-# Scan for vulnerabilities and auto-create PRs
+# 1. Scan your project for vulnerabilities
 securefix scan ./my-project -o report.json
-securefix fix report.json --auto-pr --severity high
+
+# 2. Generate fixes using LLM remediation
+securefix fix report.json
+
+# After fixes are generated, SecureFix will:
+# - Show a summary of High/Critical confidence fixes
+# - Ask if you want to create a GitHub PR
+# - Preview all changes before creating the PR
+# - Create a new branch, commit changes, and open the PR
+```
+
+### Interactive PR Creation
+
+When high-confidence fixes are available, you'll see:
+
+```
+======================================================================
+PULL REQUEST PREVIEW
+======================================================================
+
+Title: 🔒 [SecureFix] Fix 2 high security vulnerabilities
+Branch: securefix-high-severity-20251103-143025
+Commit: Fix 2 high vulnerabilities (SQL injection, XSS)
+
+Files to modify: 2
+  - src/app.py
+  - src/views.py
+
+----------------------------------------------------------------------
+Applying fixes (in memory)...
+----------------------------------------------------------------------
+
+Processing src/app.py (1 fix(es))... ✓
+Processing src/views.py (1 fix(es))... ✓
+
+======================================================================
+READY TO CREATE PULL REQUEST
+======================================================================
+Repository: my-org/my-repo
+Files changed: 2
+Total fixes: 2
+
+✓ Preview complete. Create pull request with these changes? [Y/n]:
+```
+
+### Custom Branch Names
+
+You can provide a custom branch name:
+
+```bash
+securefix fix report.json --branch-name security-fixes-jan-2025
+```
+
+### Manual PR Creation
+
+To skip the interactive prompt and create PR automatically (CI/CD):
+
+```bash
+securefix fix report.json --auto-pr
 ```
 
 ## Troubleshooting
