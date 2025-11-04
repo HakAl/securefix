@@ -66,6 +66,7 @@ llamacpp = [
 # MCP (Model Context Protocol) integration for GitHub PR automation
 mcp = [
     "fastmcp>=0.2.0",
+    "libcst>=1.0.0",
 ]
 
 # All optional dependencies
