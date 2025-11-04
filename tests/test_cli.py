@@ -870,6 +870,410 @@ class TestUtilityFunctions:
         assert counts['Medium'] == 1
         assert counts['Low'] == 0
 
+    def test_should_create_pr_with_high_confidence_high_severity(self):
+        """Should return True for high confidence + high severity fixes"""
+        from securefix.cli import _should_create_pr
+
+        remediations = [
+            {'finding': {'severity': 'High'}, 'confidence': 'High'},
+            {'finding': {'severity': 'Critical'}, 'confidence': 'High'},
+        ]
+
+        should_prompt, pr_worthy = _should_create_pr(remediations)
+
+        assert should_prompt is True
+        assert len(pr_worthy) == 2
+
+    def test_should_create_pr_with_low_confidence(self):
+        """Should return False for low confidence fixes"""
+        from securefix.cli import _should_create_pr
+
+        remediations = [
+            {'finding': {'severity': 'High'}, 'confidence': 'Low'},
+            {'finding': {'severity': 'Critical'}, 'confidence': 'Medium'},
+        ]
+
+        should_prompt, pr_worthy = _should_create_pr(remediations)
+
+        assert should_prompt is False
+        assert len(pr_worthy) == 0
+
+    def test_should_create_pr_with_low_severity(self):
+        """Should return False for low severity fixes"""
+        from securefix.cli import _should_create_pr
+
+        remediations = [
+            {'finding': {'severity': 'Low'}, 'confidence': 'High'},
+            {'finding': {'severity': 'Medium'}, 'confidence': 'High'},
+        ]
+
+        should_prompt, pr_worthy = _should_create_pr(remediations)
+
+        assert should_prompt is False
+        assert len(pr_worthy) == 0
+
+    def test_should_create_pr_with_empty_list(self):
+        """Should return False for empty remediation list"""
+        from securefix.cli import _should_create_pr
+
+        should_prompt, pr_worthy = _should_create_pr([])
+
+        assert should_prompt is False
+        assert len(pr_worthy) == 0
+
+    def test_should_create_pr_mixed_fixes(self):
+        """Should filter correctly with mixed severity/confidence"""
+        from securefix.cli import _should_create_pr
+
+        remediations = [
+            {'finding': {'severity': 'High'}, 'confidence': 'High'},      # YES
+            {'finding': {'severity': 'High'}, 'confidence': 'Medium'},    # NO
+            {'finding': {'severity': 'Medium'}, 'confidence': 'High'},    # NO
+            {'finding': {'severity': 'Critical'}, 'confidence': 'High'},  # YES
+        ]
+
+        should_prompt, pr_worthy = _should_create_pr(remediations)
+
+        assert should_prompt is True
+        assert len(pr_worthy) == 2
+
+    def test_generate_branch_name_critical(self):
+        """Should generate branch name for critical severity"""
+        from securefix.cli import _generate_branch_name
+
+        remediations = [
+            {'finding': {'severity': 'Critical'}},
+        ]
+
+        branch_name = _generate_branch_name(remediations)
+
+        assert branch_name.startswith('securefix-critical-fixes-')
+        # Format: securefix-critical-fixes-YYYYMMDD-HHMMSS (5 parts with dashes)
+        assert len(branch_name.split('-')) == 5
+
+    def test_generate_branch_name_high(self):
+        """Should generate branch name for high severity"""
+        from securefix.cli import _generate_branch_name
+
+        remediations = [
+            {'finding': {'severity': 'High'}},
+        ]
+
+        branch_name = _generate_branch_name(remediations)
+
+        assert branch_name.startswith('securefix-high-severity-')
+
+    def test_generate_branch_name_mixed(self):
+        """Should prioritize critical in branch name"""
+        from securefix.cli import _generate_branch_name
+
+        remediations = [
+            {'finding': {'severity': 'High'}},
+            {'finding': {'severity': 'Critical'}},
+            {'finding': {'severity': 'Medium'}},
+        ]
+
+        branch_name = _generate_branch_name(remediations)
+
+        assert 'critical' in branch_name
+
+    def test_generate_branch_name_default(self):
+        """Should generate default branch name for other severities"""
+        from securefix.cli import _generate_branch_name
+
+        remediations = [
+            {'finding': {'severity': 'Medium'}},
+        ]
+
+        branch_name = _generate_branch_name(remediations)
+
+        assert branch_name.startswith('securefix-automated-fixes-')
+
+    def test_create_github_pr_not_configured(self):
+        """Should fail gracefully when MCP is not configured"""
+        from securefix.cli import _create_github_pr
+
+        with patch('securefix.remediation.config.app_config') as mock_config:
+            mock_config.mcp.is_configured.return_value = False
+
+            result = _create_github_pr([], 'report.json')
+
+            assert result['success'] is False
+            assert 'not fully configured' in result['error']
+
+    def test_create_github_pr_with_custom_branch(self):
+        """Should use custom branch name when provided"""
+        from securefix.cli import _create_github_pr
+
+        with patch('securefix.remediation.config.app_config') as mock_config:
+            mock_config.mcp.is_configured.return_value = True
+            mock_config.mcp.github_owner = 'test-owner'
+            mock_config.mcp.github_repo = 'test-repo'
+            mock_config.mcp.mcp_server_host = '127.0.0.1'
+            mock_config.mcp.mcp_server_port = 3000
+
+            remediations = [
+                {'finding': {'severity': 'High'}, 'confidence': 'High'}
+            ]
+
+            result = _create_github_pr(remediations, 'report.json', 'custom-branch-name')
+
+            # Should return placeholder response with our custom branch name
+            assert 'branch_name' in result
+            assert result['branch_name'] == 'custom-branch-name'
+
+    def test_create_github_pr_auto_generates_branch(self):
+        """Should auto-generate branch name if not provided"""
+        from securefix.cli import _create_github_pr
+
+        with patch('securefix.remediation.config.app_config') as mock_config:
+            mock_config.mcp.is_configured.return_value = True
+            mock_config.mcp.github_owner = 'test-owner'
+            mock_config.mcp.github_repo = 'test-repo'
+            mock_config.mcp.mcp_server_host = '127.0.0.1'
+            mock_config.mcp.mcp_server_port = 3000
+
+            remediations = [
+                {'finding': {'severity': 'Critical'}, 'confidence': 'High'}
+            ]
+
+            result = _create_github_pr(remediations, 'report.json')
+
+            # Should have auto-generated branch name
+            assert 'branch_name' in result
+            assert result['branch_name'].startswith('securefix-critical-fixes-')
+
+
+class TestMCPIntegration:
+    """Tests for MCP GitHub PR creation integration"""
+
+    @pytest.fixture
+    def mock_mcp_config(self):
+        """Mock MCP configuration"""
+        with patch('securefix.remediation.config.app_config') as mock_config:
+            mock_config.mcp.is_configured.return_value = True
+            mock_config.mcp.github_owner = 'test-owner'
+            mock_config.mcp.github_repo = 'test-repo'
+            mock_config.mcp.mcp_server_host = '127.0.0.1'
+            mock_config.mcp.mcp_server_port = 3000
+            yield mock_config
+
+    @pytest.fixture
+    def sample_report_with_high_severity(self, tmp_path):
+        """Create a sample report with high severity findings"""
+        report_path = tmp_path / "report.json"
+        report_data = {
+            "summary": {
+                "scan_timestamp": "2025-01-03T12:00:00",
+                "total_findings": 2,
+                "by_severity": {"High": 2}
+            },
+            "sast_findings": [
+                {
+                    "type": "SQL Injection",
+                    "severity": "High",
+                    "file": "app.py",
+                    "line": 10,
+                    "snippet": "cursor.execute(f'SELECT * FROM users WHERE id={uid}')"
+                },
+                {
+                    "type": "Pickle Deserialization",
+                    "severity": "Critical",
+                    "file": "utils.py",
+                    "line": 5,
+                    "snippet": "pickle.loads(data)"
+                }
+            ],
+            "cve_findings": []
+        }
+        with open(report_path, 'w') as f:
+            json.dump(report_data, f)
+        return report_path
+
+    def test_fix_prompts_for_pr_when_mcp_configured(self, runner, mock_mcp_config,
+                                                      sample_report_with_high_severity, tmp_path,
+                                                      mock_vector_store, mock_bm25_index, mock_bm25_chunks):
+        """Should prompt for PR creation when MCP is configured and high-confidence fixes exist"""
+        # Mock all the dependencies
+        with patch('securefix.remediation.corpus_builder.DocumentProcessor') as mock_proc_cls, \
+             patch('securefix.cli._configure_llm') as mock_llm, \
+             patch('securefix.remediation.fix_knowledge_store.DocumentStore'), \
+             patch('securefix.remediation.remediation_engine.RemediationEngine') as mock_engine:
+
+            # Setup DocumentProcessor mock to return 3-tuple
+            mock_proc_instance = Mock()
+            mock_proc_instance.load_existing_vectorstore.return_value = (
+                mock_vector_store,
+                mock_bm25_index,
+                mock_bm25_chunks
+            )
+            mock_proc_cls.return_value = mock_proc_instance
+
+            # Setup LLM mock
+            mock_llm.return_value = Mock()
+
+            # Setup RemediationEngine mock
+            mock_engine_instance = Mock()
+            mock_engine_instance.get_llm_info.return_value = "Mock LLM"
+            mock_engine_instance.generate_fix.return_value = {
+                'answer': '{"suggested_fix": "test", "explanation": "test", "confidence": "High"}',
+                'source_documents': []
+            }
+            mock_engine.return_value = mock_engine_instance
+
+            # Create vector DB directory
+            vector_db = tmp_path / "chroma_db"
+            vector_db.mkdir()
+
+            # Run fix command with --no-cache to avoid interactive prompts
+            # Answer 'n' to PR creation prompt
+            result = runner.invoke(cli, [
+                'fix',
+                str(sample_report_with_high_severity),
+                '--output', str(tmp_path / 'fixes.json'),
+                '--persist-dir', str(vector_db),
+                '--no-cache'
+            ], input='n\n')
+
+            # Should show PR prompt
+            assert 'GITHUB PULL REQUEST' in result.output
+            assert 'high-confidence fix' in result.output
+            assert 'Would you like to create a GitHub Pull Request' in result.output
+
+    def test_fix_skips_pr_prompt_when_no_high_confidence_fixes(self, runner, mock_mcp_config,
+                                                                 tmp_path):
+        """Should not prompt for PR when no high-confidence fixes exist"""
+        # Create report with low severity findings
+        report_path = tmp_path / "report.json"
+        report_data = {
+            "summary": {"scan_timestamp": "2025-01-03T12:00:00", "total_findings": 1},
+            "sast_findings": [
+                {"type": "Test", "severity": "Low", "file": "test.py", "line": 1, "snippet": "test"}
+            ],
+            "cve_findings": []
+        }
+        with open(report_path, 'w') as f:
+            json.dump(report_data, f)
+
+        with patch('securefix.remediation.corpus_builder.DocumentProcessor'), \
+             patch('securefix.cli._configure_llm') as mock_llm, \
+             patch('securefix.remediation.fix_knowledge_store.DocumentStore'), \
+             patch('securefix.remediation.remediation_engine.RemediationEngine') as mock_engine:
+
+            mock_llm.return_value = Mock()
+            mock_engine_instance = Mock()
+            mock_engine_instance.get_llm_info.return_value = "Mock LLM"
+            # Return low confidence
+            mock_engine_instance.generate_fix.return_value = {
+                'answer': '{"suggested_fix": "test", "explanation": "test", "confidence": "Low"}',
+                'source_documents': []
+            }
+            mock_engine.return_value = mock_engine_instance
+
+            vector_db = tmp_path / "chroma_db"
+            vector_db.mkdir()
+
+            result = runner.invoke(cli, [
+                'fix',
+                str(report_path),
+                '--output', str(tmp_path / 'fixes.json'),
+                '--persist-dir', str(vector_db),
+                '--no-cache'
+            ])
+
+            # Should NOT show PR prompt
+            assert 'GITHUB PULL REQUEST' not in result.output
+
+    def test_fix_skips_pr_prompt_when_mcp_not_configured(self, runner, tmp_path,
+                                                          sample_report_with_high_severity):
+        """Should not prompt for PR when MCP is not configured"""
+        with patch('securefix.remediation.config.app_config') as mock_config, \
+             patch('securefix.remediation.corpus_builder.DocumentProcessor'), \
+             patch('securefix.cli._configure_llm') as mock_llm, \
+             patch('securefix.remediation.fix_knowledge_store.DocumentStore'), \
+             patch('securefix.remediation.remediation_engine.RemediationEngine') as mock_engine:
+
+            # MCP not configured
+            mock_config.mcp.is_configured.return_value = False
+
+            mock_llm.return_value = Mock()
+            mock_engine_instance = Mock()
+            mock_engine_instance.get_llm_info.return_value = "Mock LLM"
+            mock_engine_instance.generate_fix.return_value = {
+                'answer': '{"suggested_fix": "test", "explanation": "test", "confidence": "High"}',
+                'source_documents': []
+            }
+            mock_engine.return_value = mock_engine_instance
+
+            vector_db = tmp_path / "chroma_db"
+            vector_db.mkdir()
+
+            result = runner.invoke(cli, [
+                'fix',
+                str(sample_report_with_high_severity),
+                '--output', str(tmp_path / 'fixes.json'),
+                '--persist-dir', str(vector_db),
+                '--no-cache'
+            ])
+
+            # Should NOT show PR prompt
+            assert 'GITHUB PULL REQUEST' not in result.output
+
+    def test_fix_creates_pr_with_custom_branch_name(self, runner, mock_mcp_config,
+                                                     sample_report_with_high_severity, tmp_path,
+                                                     mock_vector_store, mock_bm25_index, mock_bm25_chunks):
+        """Should allow customizing branch name during PR creation"""
+        with patch('securefix.remediation.corpus_builder.DocumentProcessor') as mock_proc_cls, \
+             patch('securefix.cli._configure_llm') as mock_llm, \
+             patch('securefix.remediation.fix_knowledge_store.DocumentStore'), \
+             patch('securefix.remediation.remediation_engine.RemediationEngine') as mock_engine, \
+             patch('securefix.cli._create_github_pr') as mock_create_pr:
+
+            # Setup DocumentProcessor mock to return 3-tuple
+            mock_proc_instance = Mock()
+            mock_proc_instance.load_existing_vectorstore.return_value = (
+                mock_vector_store,
+                mock_bm25_index,
+                mock_bm25_chunks
+            )
+            mock_proc_cls.return_value = mock_proc_instance
+
+            # Setup LLM mock
+            mock_llm.return_value = Mock()
+
+            # Setup RemediationEngine mock
+            mock_engine_instance = Mock()
+            mock_engine_instance.get_llm_info.return_value = "Mock LLM"
+            mock_engine_instance.generate_fix.return_value = {
+                'answer': '{"suggested_fix": "test", "explanation": "test", "confidence": "High"}',
+                'source_documents': []
+            }
+            mock_engine.return_value = mock_engine_instance
+
+            # Setup PR creation mock
+            mock_create_pr.return_value = {
+                'success': True,
+                'pr_url': 'https://github.com/test/test/pull/123'
+            }
+
+            # Create vector DB directory
+            vector_db = tmp_path / "chroma_db"
+            vector_db.mkdir()
+
+            # Answer: yes to PR creation, yes to customize, enter custom name
+            result = runner.invoke(cli, [
+                'fix',
+                str(sample_report_with_high_severity),
+                '--output', str(tmp_path / 'fixes.json'),
+                '--persist-dir', str(vector_db),
+                '--no-cache'
+            ], input='y\ny\nmy-custom-branch\n')
+
+            # Should have called create_pr with custom branch name
+            assert mock_create_pr.called
+            call_args = mock_create_pr.call_args
+            assert call_args[0][2] == 'my-custom-branch'  # branch_name argument
+
 
 if __name__ == '__main__':
     pytest.main([__file__, "-v"])

@@ -79,12 +79,45 @@ class RerankerConfig:
 
 
 @dataclass
+class MCPConfig:
+    """Configuration for MCP (Model Context Protocol) GitHub integration"""
+    github_token: Optional[str] = None
+    github_owner: Optional[str] = None
+    github_repo: Optional[str] = None
+    mcp_server_host: str = "127.0.0.1"
+    mcp_server_port: int = 3000
+    mcp_enabled: bool = False  # Auto-enabled if token is present
+
+    @classmethod
+    def from_env(cls) -> "MCPConfig":
+        token = os.getenv("GITHUB_TOKEN")
+        return cls(
+            github_token=token,
+            github_owner=os.getenv("GITHUB_OWNER"),
+            github_repo=os.getenv("GITHUB_REPO"),
+            mcp_server_host=os.getenv("MCP_SERVER_HOST", "127.0.0.1"),
+            mcp_server_port=int(os.getenv("MCP_SERVER_PORT", 3000)),
+            mcp_enabled=token is not None  # Auto-enable if token is present
+        )
+
+    def is_configured(self) -> bool:
+        """Check if MCP is fully configured for PR creation"""
+        return all([
+            self.mcp_enabled,
+            self.github_token,
+            self.github_owner,
+            self.github_repo
+        ])
+
+
+@dataclass
 class AppConfig:
     """Main configuration class that combines all config sections"""
     config: Config
     retriever: RetrieverConfig
     chunking: ChunkingConfig
     reranker: RerankerConfig
+    mcp: MCPConfig
 
     @classmethod
     def from_env(cls) -> "AppConfig":
@@ -92,7 +125,8 @@ class AppConfig:
             config=Config.from_env(),
             retriever=RetrieverConfig.from_env(),
             chunking=ChunkingConfig.from_env(),
-            reranker=RerankerConfig.from_env()
+            reranker=RerankerConfig.from_env(),
+            mcp=MCPConfig.from_env()
         )
 
 

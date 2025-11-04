@@ -378,6 +378,44 @@ def fix(report, output, interactive, llm_mode, model_name, model_path, no_cache,
     click.echo(f"Average: {total_time / len(findings):.2f}s per vulnerability")
     click.echo(f"\nResults saved to: {output}")
 
+    # Check if we should offer to create a PR
+    from securefix.remediation.config import app_config
+
+    if app_config.mcp.is_configured():
+        should_prompt, pr_worthy = _should_create_pr(remediations)
+
+        if should_prompt:
+            click.echo(f"\n{'=' * 70}")
+            click.echo("GITHUB PULL REQUEST")
+            click.echo("=" * 70)
+            click.echo(f"Found {len(pr_worthy)} high-confidence fix(es) for high/critical vulnerabilities")
+
+            # Ask if user wants to create PR
+            if click.confirm("\nWould you like to create a GitHub Pull Request with these fixes?", default=True):
+                # Generate default branch name
+                default_branch = _generate_branch_name(pr_worthy)
+                click.echo(f"\nDefault branch name: {default_branch}")
+
+                # Ask if user wants to customize branch name
+                if click.confirm("Customize branch name?", default=False):
+                    branch_name = click.prompt("Enter branch name", default=default_branch)
+                else:
+                    branch_name = default_branch
+
+                # Create the PR
+                result = _create_github_pr(pr_worthy, report, branch_name)
+
+                if result['success']:
+                    click.echo(f"\n✓ Pull request created successfully!")
+                    click.echo(f"  URL: {result.get('pr_url')}")
+                else:
+                    click.echo(f"\n✗ Failed to create pull request", err=True)
+                    click.echo(f"  Error: {result.get('error')}", err=True)
+                    if 'todo' in result:
+                        click.echo(f"\n  Next steps:")
+                        for step in result['todo']:
+                            click.echo(f"    - {step}")
+
 
 def _configure_llm(mode: str, model_name: str = None, model_path: str = None):
     """Configure LLM based on mode and validate availability."""
@@ -560,6 +598,112 @@ def _count_by_confidence(remediations: List[Dict]) -> Dict[str, int]:
 def _is_sast_finding(finding: Dict, sast_findings: List[Dict]) -> bool:
     """Check if finding is from SAST scan (vs CVE scan)."""
     return finding in sast_findings
+
+
+def _should_create_pr(remediations: List[Dict]) -> tuple[bool, List[Dict]]:
+    """
+    Determine if we should prompt for PR creation.
+
+    Returns:
+        (should_prompt, pr_worthy_fixes): Tuple of bool and list of fixes
+    """
+    if not remediations:
+        return False, []
+
+    # Filter for high/critical severity AND high confidence fixes
+    pr_worthy = []
+    for remediation in remediations:
+        severity = remediation['finding'].get('severity', '').lower()
+        confidence = remediation.get('confidence', '').lower()
+
+        # Only include high/critical severity with high confidence
+        if severity in ['high', 'critical'] and confidence == 'high':
+            pr_worthy.append(remediation)
+
+    return len(pr_worthy) > 0, pr_worthy
+
+
+def _generate_branch_name(remediations: List[Dict]) -> str:
+    """Generate a default branch name based on fixes."""
+    from datetime import datetime
+
+    # Count severity types
+    severities = [r['finding'].get('severity', '').lower() for r in remediations]
+    critical_count = severities.count('critical')
+    high_count = severities.count('high')
+
+    # Build branch name
+    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+
+    if critical_count > 0:
+        return f"securefix-critical-fixes-{timestamp}"
+    elif high_count > 0:
+        return f"securefix-high-severity-{timestamp}"
+    else:
+        return f"securefix-automated-fixes-{timestamp}"
+
+
+def _create_github_pr(remediations: List[Dict], report_path: str, branch_name: str = None) -> dict:
+    """
+    Create a GitHub Pull Request with suggested fixes via MCP.
+
+    Args:
+        remediations: List of remediation dictionaries with fixes
+        report_path: Path to the original scan report
+        branch_name: Optional custom branch name. If None, will be auto-generated.
+
+    Returns:
+        dict with 'success', 'pr_url', and 'error' keys
+    """
+    from securefix.remediation.config import app_config
+
+    # Verify MCP is configured
+    if not app_config.mcp.is_configured():
+        return {
+            'success': False,
+            'error': 'MCP not fully configured. Check GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO'
+        }
+
+    # Generate branch name if not provided
+    if not branch_name:
+        branch_name = _generate_branch_name(remediations)
+
+    try:
+        # TODO: Implement actual MCP client communication
+        # This is a placeholder for Phase 2 integration
+
+        # Future implementation will:
+        # 1. Connect to MCP server at app_config.mcp.mcp_server_host:mcp_server_port
+        # 2. Create a new branch with name `branch_name`
+        # 3. Apply fixes to files
+        # 4. Commit changes
+        # 5. Create pull request
+
+        click.echo("\n[MCP Integration] Creating pull request...")
+        click.echo(f"  Repository: {app_config.mcp.github_owner}/{app_config.mcp.github_repo}")
+        click.echo(f"  Branch: {branch_name}")
+        click.echo(f"  Fixes to apply: {len(remediations)}")
+        click.echo(f"  MCP Server: {app_config.mcp.mcp_server_host}:{app_config.mcp.mcp_server_port}")
+
+        # Placeholder response
+        return {
+            'success': False,
+            'error': 'MCP client integration not yet implemented (Phase 2)',
+            'branch_name': branch_name,
+            'todo': [
+                'Connect to github-mcp-server',
+                f'Create branch: {branch_name}',
+                'Apply fixes to files',
+                'Commit changes',
+                'Generate PR with fix details'
+            ]
+        }
+
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f'Failed to create PR: {str(e)}'
+        }
 
 
 if __name__ == '__main__':
