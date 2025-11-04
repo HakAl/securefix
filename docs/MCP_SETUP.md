@@ -1,237 +1,105 @@
-# MCP (Model Context Protocol) Setup Guide
-
-This guide explains how to set up the MCP integration for automated GitHub Pull Request creation in SecureFix.
+# MCP Setup Guide for SecureFix
 
 ## Architecture Overview
 
-SecureFix uses the Model Context Protocol (MCP) to integrate with GitHub:
-- **fastmcp** - Python MCP client library (installed via pip)
-- **github-mcp-server** - Node.js MCP server that handles GitHub API operations
+SecureFix uses a **dual MCP server architecture** for extensible platform integration.
 
-## Prerequisites
+See full documentation at: https://github.com/modelcontextprotocol/servers
 
-### 1. Node.js and npm
-The github-mcp-server requires Node.js 18+ and npm:
+## Quick Start
+
+### 1. Git Server (Python)
+```bash
+cd /c/Users/anyth/MINE/dev/mcp-servers/src/git
+pip install -e .
+python -m mcp_server_git --repository /path/to/repo
+```
+
+### 2. GitHub Server (Docker)
+```bash
+docker pull ghcr.io/github/github-mcp-server
+docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN=$GITHUB_TOKEN ghcr.io/github/github-mcp-server
+```
+
+### 3. Configure SecureFix
+Add to `.env`:
+```
+GITHUB_TOKEN=ghp_your_token
+GITHUB_OWNER=your_username
+GITHUB_REPO=your_repo
+```
+
+## Status
+
+- ✅ Git MCP server installed
+- ✅ GitHub MCP server (Docker) ready
+- ✅ SecureFix client integration complete
+- ⏳ End-to-end testing
+
+## Integration Details
+
+### Dual-Server Orchestration
+
+SecureFix now orchestrates both MCP servers automatically:
+
+**Phase 1: Local Git Operations (git MCP server)**
+1. Create branch from base branch
+2. Checkout new branch
+3. Write and stage fixed files
+4. Commit changes locally
+
+**Phase 2: GitHub API Operations (GitHub MCP server via Docker)**
+5. Push branch to GitHub remote
+6. Create pull request with fixes
+
+### Configuration
+
+All settings are in `securefix/remediation/config.py` via environment variables:
 
 ```bash
-# Check if Node.js is installed
-node --version  # Should be v18.0.0 or higher
-npm --version
+# Required
+GITHUB_TOKEN=ghp_your_token          # GitHub PAT with repo permissions
+GITHUB_OWNER=your_username           # Repository owner
+GITHUB_REPO=your_repo                # Repository name
+
+# Optional
+GITHUB_BASE_BRANCH=main              # Default: "main"
+GIT_MCP_SERVER_COMMAND="python -m mcp_server_git"  # Git server command
+GITHUB_MCP_TRANSPORT=docker          # "docker" or "stdio"
+GITHUB_MCP_DOCKER_IMAGE=ghcr.io/github/github-mcp-server:latest
 ```
 
-If not installed, download from [nodejs.org](https://nodejs.org/)
+### Usage
 
-### 2. GitHub Personal Access Token
-You'll need a GitHub token with appropriate permissions:
-
-1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
-2. Click "Generate new token (classic)"
-3. Select scopes:
-   - `repo` (Full control of private repositories)
-   - `workflow` (Update GitHub Actions workflows - if needed)
-4. Generate and copy the token
-5. Store it securely (you won't be able to see it again)
-
-## Installation
-
-### Step 1: Install Python Dependencies
-
-Install fastmcp along with other SecureFix dependencies:
+Once configured, PR creation is automatic:
 
 ```bash
-# Install with MCP support
-pip install -e ".[mcp]"
-
-# Or install all optional dependencies
-pip install -e ".[all]"
+securefix scan vulnerable/ -o report.json
+securefix fix report.json --create-pr
 ```
 
-### Step 2: Install github-mcp-server
+The tool will:
+- Auto-detect repository root
+- Generate branch name and PR content
+- Orchestrate both MCP servers
+- Create PR on GitHub
 
-Install the github-mcp-server globally using npm:
+## Testing
+
+To test the integration:
 
 ```bash
-npm install -g @modelcontextprotocol/server-github
+# 1. Ensure both servers are available
+python -m mcp_server_git --help
+docker pull ghcr.io/github/github-mcp-server:latest
+
+# 2. Configure environment
+export GITHUB_TOKEN=ghp_...
+export GITHUB_OWNER=your_username
+export GITHUB_REPO=your_repo
+
+# 3. Run SecureFix with PR creation
+securefix scan test/ -o report.json
+securefix fix report.json --create-pr
 ```
 
-Or install it locally in your project:
-
-```bash
-npm install @modelcontextprotocol/server-github
-```
-
-### Step 3: Configure Environment Variables
-
-Create or update your `.env` file:
-
-```bash
-# GitHub Configuration
-GITHUB_TOKEN=ghp_your_token_here
-GITHUB_OWNER=your-username-or-org
-GITHUB_REPO=your-repository-name
-
-# MCP Server Configuration (optional)
-MCP_SERVER_HOST=127.0.0.1
-MCP_SERVER_PORT=3000
-```
-
-## Running the MCP Server
-
-### Option 1: Start Manually
-
-```bash
-# If installed globally
-github-mcp-server --token $GITHUB_TOKEN
-
-# If installed locally
-npx @modelcontextprotocol/server-github --token $GITHUB_TOKEN
-```
-
-### Option 2: Start as Background Process (Unix/Linux/Mac)
-
-```bash
-github-mcp-server --token $GITHUB_TOKEN &
-```
-
-### Option 3: Start as Background Process (Windows)
-
-```powershell
-Start-Process -NoNewWindow github-mcp-server -ArgumentList "--token $env:GITHUB_TOKEN"
-```
-
-## Verification
-
-### Test MCP Connection
-
-Run the integration test to verify the setup:
-
-```bash
-# Run MCP integration tests only
-pytest -m requires_mcp
-
-# Run with verbose output
-pytest -m requires_mcp -v
-```
-
-### Manual Verification
-
-Check if the server is running:
-
-```bash
-# Check if the process is running
-ps aux | grep github-mcp-server  # Unix/Linux/Mac
-tasklist | findstr github-mcp    # Windows
-
-# Test server connectivity (if it exposes HTTP)
-curl http://localhost:3000/health
-```
-
-## Usage in SecureFix
-
-Once configured, SecureFix will prompt you to create a GitHub PR after generating fixes for High/Critical vulnerabilities with High confidence.
-
-### Workflow Example
-
-```bash
-# 1. Scan your project for vulnerabilities
-securefix scan ./my-project -o report.json
-
-# 2. Generate fixes using LLM remediation
-securefix fix report.json
-
-# After fixes are generated, SecureFix will:
-# - Show a summary of High/Critical confidence fixes
-# - Ask if you want to create a GitHub PR
-# - Preview all changes before creating the PR
-# - Create a new branch, commit changes, and open the PR
-```
-
-### Interactive PR Creation
-
-When high-confidence fixes are available, you'll see:
-
-```
-======================================================================
-PULL REQUEST PREVIEW
-======================================================================
-
-Title: 🔒 [SecureFix] Fix 2 high security vulnerabilities
-Branch: securefix-high-severity-20251103-143025
-Commit: Fix 2 high vulnerabilities (SQL injection, XSS)
-
-Files to modify: 2
-  - src/app.py
-  - src/views.py
-
-----------------------------------------------------------------------
-Applying fixes (in memory)...
-----------------------------------------------------------------------
-
-Processing src/app.py (1 fix(es))... ✓
-Processing src/views.py (1 fix(es))... ✓
-
-======================================================================
-READY TO CREATE PULL REQUEST
-======================================================================
-Repository: my-org/my-repo
-Files changed: 2
-Total fixes: 2
-
-✓ Preview complete. Create pull request with these changes? [Y/n]:
-```
-
-### Custom Branch Names
-
-You can provide a custom branch name:
-
-```bash
-securefix fix report.json --branch-name security-fixes-jan-2025
-```
-
-### Manual PR Creation
-
-To skip the interactive prompt and create PR automatically (CI/CD):
-
-```bash
-securefix fix report.json --auto-pr
-```
-
-## Troubleshooting
-
-### Server Not Starting
-- **Check Node.js version**: Ensure Node.js 18+ is installed
-- **Check token validity**: Test your token with `gh auth status` (if GitHub CLI is installed)
-- **Port conflicts**: Check if port 3000 is already in use
-
-### Authentication Errors
-- **Token permissions**: Ensure token has `repo` scope
-- **Token expiration**: Personal access tokens can expire - check GitHub settings
-- **Environment variables**: Verify `GITHUB_TOKEN` is properly set
-
-### Connection Errors
-- **Firewall**: Check if firewall is blocking localhost connections
-- **Server not running**: Verify the github-mcp-server process is active
-- **Wrong host/port**: Check `MCP_SERVER_HOST` and `MCP_SERVER_PORT` in `.env`
-
-### Test Failures
-```bash
-# Skip MCP tests if server is not available
-pytest -m "not requires_mcp"
-
-# Run with verbose logging
-pytest -m requires_mcp -vv --log-cli-level=DEBUG
-```
-
-## Security Considerations
-
-1. **Never commit tokens**: Add `.env` to `.gitignore` (already done in SecureFix)
-2. **Rotate tokens regularly**: GitHub recommends rotating PATs every 90 days
-3. **Use fine-grained tokens**: Consider using GitHub's fine-grained personal access tokens for better security
-4. **Minimal permissions**: Only grant the minimum required scopes
-
-## References
-
-- [Model Context Protocol Documentation](https://modelcontextprotocol.io/)
-- [fastmcp Python Client](https://github.com/jlowin/fastmcp)
-- [GitHub MCP Server](https://github.com/modelcontextprotocol/servers)
-- [GitHub Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)

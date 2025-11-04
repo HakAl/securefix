@@ -49,11 +49,25 @@ def scan(target, dependencies, output, severity, confidence):
         cve_findings = cve_scanner.scan_dependencies(dependencies)
         click.echo(f"Found {len(cve_findings)} vulnerable dependencies")
 
+    # Detect repository root for MCP integration
+    from securefix.mcp import detect_repo_root
+
+    repo_root = None
+    all_files = [f.file for f in sast_findings if f.file] + [c.file for c in cve_findings if c.file]
+    if all_files:
+        try:
+            repo_root = detect_repo_root(all_files, output=click.echo)
+            click.echo(f"Detected repository root: {repo_root}")
+        except ValueError:
+            # No common path or .git directory - that's OK, MCP features just won't work
+            click.echo("⚠ Warning: Could not detect git repository root. MCP PR creation will not be available.")
+
     # Create report
     scan_result = ScanResult(
         scan_timestamp=datetime.now().isoformat(),
         findings=sast_findings,
-        cve_findings=cve_findings
+        cve_findings=cve_findings,
+        repository_root=repo_root
     )
 
     # Write output
@@ -380,9 +394,10 @@ def fix(report, output, interactive, llm_mode, model_name, model_path, no_cache,
 
     # Check if we should offer to create a PR
     from securefix.remediation.config import app_config
+    from securefix.mcp import should_create_pr
 
     if app_config.mcp.is_configured():
-        should_prompt, pr_worthy = _should_create_pr(remediations)
+        should_prompt, pr_worthy = should_create_pr(remediations)
 
         if should_prompt:
             click.echo(f"\n{'=' * 70}")
@@ -393,7 +408,8 @@ def fix(report, output, interactive, llm_mode, model_name, model_path, no_cache,
             # Ask if user wants to create PR
             if click.confirm("\nWould you like to create a GitHub Pull Request with these fixes?", default=True):
                 # Generate default branch name
-                default_branch = _generate_branch_name(pr_worthy)
+                from securefix.mcp import generate_branch_name
+                default_branch = generate_branch_name(pr_worthy)
                 click.echo(f"\nDefault branch name: {default_branch}")
 
                 # Ask if user wants to customize branch name
@@ -403,18 +419,32 @@ def fix(report, output, interactive, llm_mode, model_name, model_path, no_cache,
                     branch_name = default_branch
 
                 # Create the PR
-                result = _create_github_pr(pr_worthy, report, branch_name)
+                result = _create_github_pr_cli(pr_worthy, report, branch_name)
 
                 if result['success']:
                     click.echo(f"\n✓ Pull request created successfully!")
                     click.echo(f"  URL: {result.get('pr_url')}")
                 else:
-                    click.echo(f"\n✗ Failed to create pull request", err=True)
-                    click.echo(f"  Error: {result.get('error')}", err=True)
-                    if 'todo' in result:
-                        click.echo(f"\n  Next steps:")
-                        for step in result['todo']:
-                            click.echo(f"    - {step}")
+                    # Use regular stdout instead of stderr to avoid Windows handle issues
+                    try:
+                        click.echo(f"\n✗ Failed to create pull request")
+                        click.echo(f"  Error: {result.get('error')}")
+                        if 'todo' in result:
+                            click.echo(f"\n  Next steps:")
+                            for step in result['todo']:
+                                click.echo(f"    - {step}")
+                        # Show debug info if available (verbose mode would need --verbose flag)
+                        if 'debug' in result and os.getenv('DEBUG'):
+                            click.echo(f"\n  Debug trace:\n{result['debug']}")
+                    except OSError:
+                        # Fallback for Windows console handle errors
+                        import sys
+                        print(f"\n✗ Failed to create pull request", file=sys.stdout)
+                        print(f"  Error: {result.get('error')}", file=sys.stdout)
+                        if 'todo' in result:
+                            print(f"\n  Next steps:", file=sys.stdout)
+                            for step in result['todo']:
+                                print(f"    - {step}", file=sys.stdout)
 
 
 def _configure_llm(mode: str, model_name: str = None, model_path: str = None):
@@ -600,188 +630,12 @@ def _is_sast_finding(finding: Dict, sast_findings: List[Dict]) -> bool:
     return finding in sast_findings
 
 
-def _should_create_pr(remediations: List[Dict]) -> tuple[bool, List[Dict]]:
+def _create_github_pr_cli(remediations: List[Dict], report_path: str, branch_name: str = None) -> dict:
     """
-    Determine if we should prompt for PR creation.
+    CLI wrapper for creating GitHub Pull Requests.
 
-    Returns:
-        (should_prompt, pr_worthy_fixes): Tuple of bool and list of fixes
-    """
-    if not remediations:
-        return False, []
-
-    # Filter for high/critical severity AND high confidence fixes
-    pr_worthy = []
-    for remediation in remediations:
-        severity = remediation['finding'].get('severity', '').lower()
-        confidence = remediation.get('confidence', '').lower()
-
-        # Only include high/critical severity with high confidence
-        if severity in ['high', 'critical'] and confidence == 'high':
-            pr_worthy.append(remediation)
-
-    return len(pr_worthy) > 0, pr_worthy
-
-
-def _generate_branch_name(remediations: List[Dict]) -> str:
-    """Generate a default branch name based on fixes."""
-    from datetime import datetime
-
-    # Count severity types
-    severities = [r['finding'].get('severity', '').lower() for r in remediations]
-    critical_count = severities.count('critical')
-    high_count = severities.count('high')
-
-    # Build branch name
-    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-
-    if critical_count > 0:
-        return f"securefix-critical-fixes-{timestamp}"
-    elif high_count > 0:
-        return f"securefix-high-severity-{timestamp}"
-    else:
-        return f"securefix-automated-fixes-{timestamp}"
-
-
-async def _create_pr_via_mcp(
-    branch_name: str,
-    commit_message: str,
-    pr_title: str,
-    pr_body: str,
-    changed_files: Dict[str, str]
-) -> dict:
-    """
-    Execute MCP operations to create a GitHub PR.
-
-    Args:
-        branch_name: Name for the new branch
-        commit_message: Commit message for changes
-        pr_title: Pull request title
-        pr_body: Pull request body/description
-        changed_files: Dict mapping file paths to updated content
-
-    Returns:
-        dict with 'success', 'pr_url', 'pr_number', and optionally 'error'
-    """
-    from securefix.remediation.config import app_config
-    import base64
-
-    try:
-        from fastmcp import FastMCP
-    except ImportError:
-        return {
-            'success': False,
-            'error': 'fastmcp not installed. Install with: pip install "securefix[mcp]"'
-        }
-
-    client = FastMCP("github-mcp-server")
-
-    try:
-        # Connect to MCP server
-        click.echo("\n  → Connecting to github-mcp-server...")
-        await client.connect(
-            host=app_config.mcp.mcp_server_host,
-            port=app_config.mcp.mcp_server_port
-        )
-        click.echo("  ✓ Connected")
-
-        # Step 1: Get default branch to branch from
-        click.echo(f"\n  → Creating branch '{branch_name}'...")
-        # Use 'main' as default, or could query repo to get default branch
-        base_branch = "main"
-
-        branch_result = await client.call_tool(
-            "create_branch",
-            arguments={
-                "owner": app_config.mcp.github_owner,
-                "repo": app_config.mcp.github_repo,
-                "branch": branch_name,
-                "from_branch": base_branch
-            }
-        )
-        click.echo(f"  ✓ Branch created from '{base_branch}'")
-
-        # Step 2: Create or update each file (this commits automatically)
-        click.echo(f"\n  → Committing {len(changed_files)} file(s)...")
-
-        for i, (file_path, content) in enumerate(changed_files.items(), 1):
-            click.echo(f"    [{i}/{len(changed_files)}] {file_path}...", nl='')
-
-            # github-mcp-server expects base64-encoded content for binary safety
-            content_encoded = base64.b64encode(content.encode('utf-8')).decode('utf-8')
-
-            await client.call_tool(
-                "create_or_update_file",
-                arguments={
-                    "owner": app_config.mcp.github_owner,
-                    "repo": app_config.mcp.github_repo,
-                    "path": file_path,
-                    "content": content_encoded,
-                    "message": f"{commit_message} - {file_path}",
-                    "branch": branch_name
-                }
-            )
-            click.echo(" ✓")
-
-        click.echo(f"  ✓ All files committed")
-
-        # Step 3: Create pull request
-        click.echo(f"\n  → Creating pull request...")
-
-        pr_result = await client.call_tool(
-            "create_pull_request",
-            arguments={
-                "owner": app_config.mcp.github_owner,
-                "repo": app_config.mcp.github_repo,
-                "title": pr_title,
-                "body": pr_body,
-                "head": branch_name,
-                "base": base_branch
-            }
-        )
-
-        # Extract PR details from result
-        pr_url = pr_result.get('html_url', '')
-        pr_number = pr_result.get('number', 0)
-
-        click.echo(f"  ✓ Pull request created!")
-        click.echo(f"\n{'=' * 70}")
-        click.echo("SUCCESS")
-        click.echo("=" * 70)
-        click.echo(f"PR #{pr_number}: {pr_url}")
-        click.echo("=" * 70)
-
-        return {
-            'success': True,
-            'pr_url': pr_url,
-            'pr_number': pr_number,
-            'branch_name': branch_name
-        }
-
-    except ConnectionError as e:
-        return {
-            'success': False,
-            'error': f'Could not connect to MCP server at {app_config.mcp.mcp_server_host}:{app_config.mcp.mcp_server_port}. '
-                     f'Is github-mcp-server running? Error: {str(e)}'
-        }
-    except Exception as e:
-        return {
-            'success': False,
-            'error': f'Failed to create PR via MCP: {str(e)}'
-        }
-    finally:
-        # Disconnect from MCP server
-        try:
-            await client.disconnect()
-        except Exception:
-            pass  # Ignore disconnect errors
-
-
-def _create_github_pr(remediations: List[Dict], report_path: str, branch_name: str = None) -> dict:
-    """
-    Create a GitHub Pull Request with suggested fixes via MCP.
-
-    Always previews changes before creating PR (dry-run first).
+    Thin wrapper around mcp.prepare_pr_data and mcp.create_pr_via_mcp that
+    handles Click-specific interactions (user prompts, output).
 
     Args:
         remediations: List of remediation dictionaries with fixes
@@ -792,13 +646,9 @@ def _create_github_pr(remediations: List[Dict], report_path: str, branch_name: s
         dict with 'success', 'pr_url', 'pr_number', and 'error' keys
     """
     from securefix.remediation.config import app_config
-    from securefix.mcp import (
-        generate_commit_message,
-        generate_pr_title,
-        generate_pr_body,
-        group_fixes_by_file,
-        apply_fixes_to_file,
-    )
+    from securefix.mcp import prepare_pr_data, create_pr_via_mcp
+    import asyncio
+    import sys
 
     # Verify MCP is configured
     if not app_config.mcp.is_configured():
@@ -807,98 +657,62 @@ def _create_github_pr(remediations: List[Dict], report_path: str, branch_name: s
             'error': 'MCP not fully configured. Check GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO'
         }
 
-    # Generate branch name if not provided
-    if not branch_name:
-        branch_name = _generate_branch_name(remediations)
+    # Prepare PR data (all business logic happens here)
+    pr_data = prepare_pr_data(
+        remediations=remediations,
+        report_path=report_path,
+        branch_name=branch_name,
+        output=click.echo
+    )
 
-    try:
-        # Step 1: Generate PR content
-        commit_message = generate_commit_message(remediations)
-        pr_title = generate_pr_title(remediations)
-        pr_body = generate_pr_body(remediations)
+    if not pr_data['success']:
+        return pr_data
 
-        click.echo("\n" + "=" * 70)
-        click.echo("PULL REQUEST PREVIEW")
-        click.echo("=" * 70)
-        click.echo(f"\nTitle: {pr_title}")
-        click.echo(f"Branch: {branch_name}")
-        click.echo(f"Commit: {commit_message}")
-        click.echo(f"\nFiles to modify: ", nl=False)
+    # Show summary and ask for confirmation
+    click.echo(f"\n{'=' * 70}")
+    click.echo("READY TO CREATE PULL REQUEST")
+    click.echo("=" * 70)
+    click.echo(f"Repository: {app_config.mcp.github_owner}/{app_config.mcp.github_repo}")
+    click.echo(f"Files changed: {len(pr_data['changed_files'])}")
+    click.echo(f"Total fixes: {len(remediations)}")
 
-        # Step 2: Group fixes by file and apply in memory
-        grouped_fixes = group_fixes_by_file(remediations)
-        changed_files = {}
-        failed_files = []
-
-        click.echo(f"{len(grouped_fixes)}")
-        for file_path in grouped_fixes.keys():
-            click.echo(f"  - {file_path}")
-
-        click.echo("\n" + "-" * 70)
-        click.echo("Applying fixes (in memory)...")
-        click.echo("-" * 70 + "\n")
-
-        for file_path, file_fixes in grouped_fixes.items():
-            try:
-                click.echo(f"Processing {file_path} ({len(file_fixes)} fix(es))...", nl='')
-                updated_content = apply_fixes_to_file(file_path, file_fixes)
-                changed_files[file_path] = updated_content
-                click.echo(" ✓")
-            except FileNotFoundError:
-                click.echo(f" ✗ (file not found)")
-                failed_files.append((file_path, "File not found"))
-            except Exception as e:
-                click.echo(f" ✗ ({str(e)})")
-                failed_files.append((file_path, str(e)))
-
-        if not changed_files:
-            return {
-                'success': False,
-                'error': 'Could not apply any fixes to files. Check file paths and permissions.'
-            }
-
-        if failed_files:
-            click.echo(f"\n⚠ Warning: {len(failed_files)} file(s) could not be fixed:")
-            for file_path, error in failed_files:
-                click.echo(f"  - {file_path}: {error}")
-
-        # Step 3: Show summary and ask for confirmation
-        click.echo(f"\n{'=' * 70}")
-        click.echo("READY TO CREATE PULL REQUEST")
-        click.echo("=" * 70)
-        click.echo(f"Repository: {app_config.mcp.github_owner}/{app_config.mcp.github_repo}")
-        click.echo(f"Files changed: {len(changed_files)}")
-        click.echo(f"Total fixes: {len(remediations)}")
-
-        if not click.confirm("\n✓ Preview complete. Create pull request with these changes?", default=True):
-            click.echo("\nPR creation cancelled.")
-            return {
-                'success': False,
-                'error': 'User cancelled PR creation',
-                'cancelled': True
-            }
-
-        # Step 4: Connect to MCP server and create PR
-        click.echo("\n[MCP Integration] Creating pull request...")
-        click.echo(f"  Server: {app_config.mcp.mcp_server_host}:{app_config.mcp.mcp_server_port}")
-
-        # Run async MCP operations
-        import asyncio
-        pr_result = asyncio.run(_create_pr_via_mcp(
-            branch_name=branch_name,
-            commit_message=commit_message,
-            pr_title=pr_title,
-            pr_body=pr_body,
-            changed_files=changed_files
-        ))
-
-        return pr_result
-
-    except Exception as e:
+    if not click.confirm("\n✓ Preview complete. Create pull request with these changes?", default=True):
+        click.echo("\nPR creation cancelled.")
         return {
             'success': False,
-            'error': f'Failed to create PR: {str(e)}'
+            'error': 'User cancelled PR creation',
+            'cancelled': True
         }
+
+    # Connect to dual MCP servers and create PR
+    click.echo("\n[MCP Integration] Preparing dual-server PR creation...")
+    click.echo(f"  Git server: {app_config.mcp.git_server_command}")
+    click.echo(f"  GitHub server: {app_config.mcp.github_server_transport}")
+
+    # Flush output before async operations to prevent Windows console handle issues
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    # Run async MCP operations with dual-server orchestration
+    pr_result = asyncio.run(create_pr_via_mcp(
+        branch_name=pr_data['branch_name'],
+        commit_message=pr_data['commit_message'],
+        pr_title=pr_data['pr_title'],
+        pr_body=pr_data['pr_body'],
+        changed_files=pr_data['changed_files'],
+        repo_root=pr_data['repo_root'],
+        github_owner=app_config.mcp.github_owner,
+        github_repo=app_config.mcp.github_repo,
+        github_token=app_config.mcp.github_token,
+        git_server_command=app_config.mcp.git_server_command,
+        github_server_transport=app_config.mcp.github_server_transport,
+        github_server_docker_image=app_config.mcp.github_server_docker_image,
+        github_server_stdio_command=app_config.mcp.github_server_stdio_command,
+        base_branch=app_config.mcp.base_branch,
+        output=click.echo
+    ))
+
+    return pr_result
 
 
 if __name__ == '__main__':

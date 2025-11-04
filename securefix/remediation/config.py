@@ -80,23 +80,36 @@ class RerankerConfig:
 
 @dataclass
 class MCPConfig:
-    """Configuration for MCP (Model Context Protocol) GitHub integration"""
+    """Configuration for dual MCP server architecture (git + GitHub)"""
+    # GitHub credentials
     github_token: Optional[str] = None
     github_owner: Optional[str] = None
     github_repo: Optional[str] = None
-    mcp_server_host: str = "127.0.0.1"
-    mcp_server_port: int = 3000
+    base_branch: str = "main"
+
+    # Git MCP server (local operations: commit, branch, stage)
+    git_server_command: str = "python -m mcp_server_git"
+
+    # GitHub MCP server (GitHub API operations: push, PR creation)
+    github_server_transport: str = "docker"  # "docker" or "stdio"
+    github_server_docker_image: str = "ghcr.io/github/github-mcp-server:latest"
+    github_server_stdio_command: str = "npx -y @modelcontextprotocol/server-github"
+
     mcp_enabled: bool = False  # Auto-enabled if token is present
 
     @classmethod
     def from_env(cls) -> "MCPConfig":
         token = os.getenv("GITHUB_TOKEN")
+
         return cls(
             github_token=token,
             github_owner=os.getenv("GITHUB_OWNER"),
             github_repo=os.getenv("GITHUB_REPO"),
-            mcp_server_host=os.getenv("MCP_SERVER_HOST", "127.0.0.1"),
-            mcp_server_port=int(os.getenv("MCP_SERVER_PORT", 3000)),
+            base_branch=os.getenv("GITHUB_BASE_BRANCH", "main"),
+            git_server_command=os.getenv("GIT_MCP_SERVER_COMMAND", "python -m mcp_server_git"),
+            github_server_transport=os.getenv("GITHUB_MCP_TRANSPORT", "docker"),
+            github_server_docker_image=os.getenv("GITHUB_MCP_DOCKER_IMAGE", "ghcr.io/github/github-mcp-server:latest"),
+            github_server_stdio_command=os.getenv("GITHUB_MCP_STDIO_COMMAND", "npx -y @modelcontextprotocol/server-github"),
             mcp_enabled=token is not None  # Auto-enable if token is present
         )
 

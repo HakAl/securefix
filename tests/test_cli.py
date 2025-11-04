@@ -872,58 +872,58 @@ class TestUtilityFunctions:
 
     def test_should_create_pr_with_high_confidence_high_severity(self):
         """Should return True for high confidence + high severity fixes"""
-        from securefix.cli import _should_create_pr
+        from securefix.mcp import should_create_pr
 
         remediations = [
             {'finding': {'severity': 'High'}, 'confidence': 'High'},
             {'finding': {'severity': 'Critical'}, 'confidence': 'High'},
         ]
 
-        should_prompt, pr_worthy = _should_create_pr(remediations)
+        should_prompt, pr_worthy = should_create_pr(remediations)
 
         assert should_prompt is True
         assert len(pr_worthy) == 2
 
     def test_should_create_pr_with_low_confidence(self):
         """Should return False for low confidence fixes"""
-        from securefix.cli import _should_create_pr
+        from securefix.mcp import should_create_pr
 
         remediations = [
             {'finding': {'severity': 'High'}, 'confidence': 'Low'},
             {'finding': {'severity': 'Critical'}, 'confidence': 'Medium'},
         ]
 
-        should_prompt, pr_worthy = _should_create_pr(remediations)
+        should_prompt, pr_worthy = should_create_pr(remediations)
 
         assert should_prompt is False
         assert len(pr_worthy) == 0
 
     def test_should_create_pr_with_low_severity(self):
         """Should return False for low severity fixes"""
-        from securefix.cli import _should_create_pr
+        from securefix.mcp import should_create_pr
 
         remediations = [
             {'finding': {'severity': 'Low'}, 'confidence': 'High'},
             {'finding': {'severity': 'Medium'}, 'confidence': 'High'},
         ]
 
-        should_prompt, pr_worthy = _should_create_pr(remediations)
+        should_prompt, pr_worthy = should_create_pr(remediations)
 
         assert should_prompt is False
         assert len(pr_worthy) == 0
 
     def test_should_create_pr_with_empty_list(self):
         """Should return False for empty remediation list"""
-        from securefix.cli import _should_create_pr
+        from securefix.mcp import should_create_pr
 
-        should_prompt, pr_worthy = _should_create_pr([])
+        should_prompt, pr_worthy = should_create_pr([])
 
         assert should_prompt is False
         assert len(pr_worthy) == 0
 
     def test_should_create_pr_mixed_fixes(self):
         """Should filter correctly with mixed severity/confidence"""
-        from securefix.cli import _should_create_pr
+        from securefix.mcp import should_create_pr
 
         remediations = [
             {'finding': {'severity': 'High'}, 'confidence': 'High'},      # YES
@@ -932,20 +932,20 @@ class TestUtilityFunctions:
             {'finding': {'severity': 'Critical'}, 'confidence': 'High'},  # YES
         ]
 
-        should_prompt, pr_worthy = _should_create_pr(remediations)
+        should_prompt, pr_worthy = should_create_pr(remediations)
 
         assert should_prompt is True
         assert len(pr_worthy) == 2
 
     def test_generate_branch_name_critical(self):
         """Should generate branch name for critical severity"""
-        from securefix.cli import _generate_branch_name
+        from securefix.mcp import generate_branch_name
 
         remediations = [
             {'finding': {'severity': 'Critical'}},
         ]
 
-        branch_name = _generate_branch_name(remediations)
+        branch_name = generate_branch_name(remediations)
 
         assert branch_name.startswith('securefix-critical-fixes-')
         # Format: securefix-critical-fixes-YYYYMMDD-HHMMSS (5 parts with dashes)
@@ -953,19 +953,19 @@ class TestUtilityFunctions:
 
     def test_generate_branch_name_high(self):
         """Should generate branch name for high severity"""
-        from securefix.cli import _generate_branch_name
+        from securefix.mcp import generate_branch_name
 
         remediations = [
             {'finding': {'severity': 'High'}},
         ]
 
-        branch_name = _generate_branch_name(remediations)
+        branch_name = generate_branch_name(remediations)
 
         assert branch_name.startswith('securefix-high-severity-')
 
     def test_generate_branch_name_mixed(self):
         """Should prioritize critical in branch name"""
-        from securefix.cli import _generate_branch_name
+        from securefix.mcp import generate_branch_name
 
         remediations = [
             {'finding': {'severity': 'High'}},
@@ -973,42 +973,47 @@ class TestUtilityFunctions:
             {'finding': {'severity': 'Medium'}},
         ]
 
-        branch_name = _generate_branch_name(remediations)
+        branch_name = generate_branch_name(remediations)
 
         assert 'critical' in branch_name
 
     def test_generate_branch_name_default(self):
         """Should generate default branch name for other severities"""
-        from securefix.cli import _generate_branch_name
+        from securefix.mcp import generate_branch_name
 
         remediations = [
             {'finding': {'severity': 'Medium'}},
         ]
 
-        branch_name = _generate_branch_name(remediations)
+        branch_name = generate_branch_name(remediations)
 
         assert branch_name.startswith('securefix-automated-fixes-')
 
     def test_create_github_pr_not_configured(self):
         """Should fail gracefully when MCP is not configured"""
-        from securefix.cli import _create_github_pr
+        from securefix.cli import _create_github_pr_cli
 
         with patch('securefix.remediation.config.app_config') as mock_config:
             mock_config.mcp.is_configured.return_value = False
 
-            result = _create_github_pr([], 'report.json')
+            result = _create_github_pr_cli([], 'report.json')
 
             assert result['success'] is False
             assert 'not fully configured' in result['error']
 
     def test_create_github_pr_with_custom_branch(self):
         """Should use custom branch name when provided"""
-        from securefix.cli import _create_github_pr
+        from securefix.cli import _create_github_pr_cli
+        import json
+        from unittest.mock import mock_open
+
+        mock_report = json.dumps({'repository_root': '/test/repo'})
 
         with patch('securefix.remediation.config.app_config') as mock_config, \
-             patch('securefix.mcp.group_fixes_by_file') as mock_group, \
-             patch('securefix.mcp.apply_fixes_to_file') as mock_apply, \
-             patch('securefix.cli.click.confirm', return_value=False):  # User cancels
+             patch('securefix.mcp.pr_logic.group_fixes_by_file') as mock_group, \
+             patch('securefix.mcp.pr_logic.apply_fixes_to_file') as mock_apply, \
+             patch('securefix.cli.click.confirm', return_value=False), \
+             patch('builtins.open', mock_open(read_data=mock_report)):  # Mock report file
 
             mock_config.mcp.is_configured.return_value = True
             mock_config.mcp.github_owner = 'test-owner'
@@ -1017,26 +1022,31 @@ class TestUtilityFunctions:
             mock_config.mcp.mcp_server_port = 3000
 
             # Mock file operations
-            mock_group.return_value = {'test.py': [{'finding': {'line': 10}}]}
+            mock_group.return_value = {'/test/repo/test.py': [{'finding': {'line': 10}}]}
             mock_apply.return_value = 'fixed code'
 
             remediations = [
-                {'finding': {'severity': 'High', 'file': 'test.py', 'line': 10}, 'confidence': 'High'}
+                {'finding': {'severity': 'High', 'file': '/test/repo/test.py', 'line': 10}, 'confidence': 'High'}
             ]
 
-            result = _create_github_pr(remediations, 'report.json', 'custom-branch-name')
+            result = _create_github_pr_cli(remediations, 'report.json', 'custom-branch-name')
 
             # User cancelled, so we get cancelled flag
             assert result.get('cancelled') == True
 
     def test_create_github_pr_auto_generates_branch(self):
         """Should auto-generate branch name if not provided"""
-        from securefix.cli import _create_github_pr
+        from securefix.cli import _create_github_pr_cli
+        import json
+        from unittest.mock import mock_open
+
+        mock_report = json.dumps({'repository_root': '/test/repo'})
 
         with patch('securefix.remediation.config.app_config') as mock_config, \
-             patch('securefix.mcp.group_fixes_by_file') as mock_group, \
-             patch('securefix.mcp.apply_fixes_to_file') as mock_apply, \
-             patch('securefix.cli.click.confirm', return_value=False):  # User cancels
+             patch('securefix.mcp.pr_logic.group_fixes_by_file') as mock_group, \
+             patch('securefix.mcp.pr_logic.apply_fixes_to_file') as mock_apply, \
+             patch('securefix.cli.click.confirm', return_value=False), \
+             patch('builtins.open', mock_open(read_data=mock_report)):  # Mock report file
 
             mock_config.mcp.is_configured.return_value = True
             mock_config.mcp.github_owner = 'test-owner'
@@ -1045,14 +1055,14 @@ class TestUtilityFunctions:
             mock_config.mcp.mcp_server_port = 3000
 
             # Mock file operations
-            mock_group.return_value = {'test.py': [{'finding': {'line': 10}}]}
+            mock_group.return_value = {'/test/repo/test.py': [{'finding': {'line': 10}}]}
             mock_apply.return_value = 'fixed code'
 
             remediations = [
-                {'finding': {'severity': 'Critical', 'file': 'test.py', 'line': 10}, 'confidence': 'High'}
+                {'finding': {'severity': 'Critical', 'file': '/test/repo/test.py', 'line': 10}, 'confidence': 'High'}
             ]
 
-            result = _create_github_pr(remediations, 'report.json')
+            result = _create_github_pr_cli(remediations, 'report.json')
 
             # User cancelled, but function still runs successfully
             assert result.get('cancelled') == True
@@ -1241,7 +1251,7 @@ class TestMCPIntegration:
              patch('securefix.cli._configure_llm') as mock_llm, \
              patch('securefix.remediation.fix_knowledge_store.DocumentStore'), \
              patch('securefix.remediation.remediation_engine.RemediationEngine') as mock_engine, \
-             patch('securefix.cli._create_github_pr') as mock_create_pr:
+             patch('securefix.cli._create_github_pr_cli') as mock_create_pr:
 
             # Setup DocumentProcessor mock to return 3-tuple
             mock_proc_instance = Mock()

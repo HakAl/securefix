@@ -211,3 +211,4 @@ def generate_pr_body(remediations: List[Dict]) -> str:
     body.append("before merging._")
 
     return '\n'.join(body)
+

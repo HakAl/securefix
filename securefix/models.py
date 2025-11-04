@@ -94,11 +94,12 @@ class ScanResult:
     scan_timestamp: str
     findings: list
     cve_findings: list
+    repository_root: Optional[str] = None
 
     def to_dict(self):
         severity_counts = Counter(f.severity for f in self.findings)
 
-        return {
+        result = {
             'summary': {
                 'total_findings': len(self.findings),
                 'total_cve_findings': len(self.cve_findings),
@@ -113,3 +114,9 @@ class ScanResult:
             'sast_findings': [f.to_dict() for f in self.findings],
             'cve_findings': [c.to_dict() for c in self.cve_findings]
         }
+
+        # Add repository root if available
+        if self.repository_root:
+            result['repository_root'] = self.repository_root
+
+        return result
