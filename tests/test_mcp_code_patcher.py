@@ -281,7 +281,7 @@ class TestFindAndReplaceSnippet:
         result = _find_and_replace_snippet(lines, 1, old_snippet, new_snippet)
 
         assert "def new():\n" in result
-        assert "return True\n" in result
+        assert "    return True\n" in result  # With correct indentation
 
     def test_fuzzy_match_threshold(self):
         """Should use fuzzy match above 85% threshold."""

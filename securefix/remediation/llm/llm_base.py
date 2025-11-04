@@ -52,7 +52,7 @@ CWE ID: {cwe_id}
 
 Based on the secure coding practices provided above, generate a response in JSON format with four keys:
 
-1. 'suggested_fix': The corrected code (preserve original formatting/indentation as much as possible)
+1. 'suggested_fix': Syntactically correct, fixed code. Preserve original formatting/indentation as much as possible.
 2. 'explanation': A brief explanation of why the original is vulnerable and how the fix helps (2-3 sentences)
 3. 'confidence': Your confidence level ('High', 'Medium', or 'Low')
 4. 'cwe_id': The relevant CWE identifier if applicable
