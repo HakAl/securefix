@@ -8,26 +8,58 @@ See full documentation at: https://github.com/modelcontextprotocol/servers
 
 ## Quick Start
 
-### 1. Git Server (Python)
+### 1. Install Git MCP Server (Python)
 ```bash
 cd /c/Users/anyth/MINE/dev/mcp-servers/src/git
 pip install -e .
-python -m mcp_server_git --repository /path/to/repo
+
+# Verify installation
+python -m mcp_server_git --help
 ```
 
-### 2. GitHub Server (Docker)
+**Note**: You don't need to run this manually. SecureFix will start it automatically when creating PRs, pointing it to the correct repository.
+
+### 2. Pull GitHub MCP Server (Docker)
 ```bash
 docker pull ghcr.io/github/github-mcp-server
-docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN=$GITHUB_TOKEN ghcr.io/github/github-mcp-server
 ```
 
+**Note**: This also starts automatically when creating PRs. The Docker container is ephemeral (--rm flag).
+
 ### 3. Configure SecureFix
-Add to `.env`:
+
+Add to `.env` or export as environment variables:
+
+```bash
+# Required
+GITHUB_TOKEN=ghp_your_token          # Get from https://github.com/settings/tokens
+GITHUB_OWNER=your_username           # Repository owner/organization
+GITHUB_REPO=your_repo                # Repository name
+
+# Optional (defaults shown)
+GITHUB_BASE_BRANCH=main
+GITHUB_MCP_TRANSPORT=docker
 ```
-GITHUB_TOKEN=ghp_your_token
-GITHUB_OWNER=your_username
-GITHUB_REPO=your_repo
+
+### 4. Use SecureFix
+
+Both MCP servers start automatically when you create a PR:
+
+```bash
+# Scan any repository
+cd /path/to/your/project
+securefix scan . -o report.json
+
+# Fix and create PR (servers start automatically)
+securefix fix report.json --create-pr
 ```
+
+SecureFix will:
+- Auto-detect the repository root from scanned files
+- Start git MCP server for that specific repository
+- Start GitHub MCP server in Docker
+- Orchestrate both to create the PR
+- Clean up when done
 
 ## Status
 
