@@ -326,6 +326,26 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "requires_api: marks tests that require API keys"
     )
+    config.addinivalue_line(
+        "markers", "requires_mcp: marks tests that require MCP server (github-mcp-server)"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Automatically skip tests that require unavailable dependencies."""
+    # Check if MCP is available
+    try:
+        import mcp
+        mcp_available = True
+    except ImportError:
+        mcp_available = False
+
+    # Auto-skip tests requiring MCP if not available
+    skip_mcp = pytest.mark.skip(reason="MCP library not installed (pip install 'securefix[mcp]')")
+
+    for item in items:
+        if "requires_mcp" in item.keywords and not mcp_available:
+            item.add_marker(skip_mcp)
 
 
 @pytest.fixture(autouse=True)

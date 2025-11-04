@@ -42,6 +42,7 @@ async def test_import_error_when_mcp_not_installed():
         assert 'pip install "securefix[mcp]"' in result['error']
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_successful_pr_creation_docker():
     """Test successful PR creation using Docker transport"""
@@ -105,6 +106,7 @@ async def test_successful_pr_creation_docker():
         assert mock_github_session.call_tool.call_count == 3
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_successful_pr_creation_stdio():
     """Test successful PR creation using stdio transport"""
@@ -149,6 +151,7 @@ async def test_successful_pr_creation_stdio():
         assert result['pr_number'] == 99
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_stdio_transport_without_command():
     """Test error when stdio transport is used without command"""
@@ -185,6 +188,7 @@ async def test_stdio_transport_without_command():
         assert 'GitHub stdio command not configured' in result['error']
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_invalid_transport():
     """Test error with invalid transport type"""
@@ -220,6 +224,7 @@ async def test_invalid_transport():
         assert 'Invalid GitHub transport: invalid_transport' in result['error']
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_branch_creation_failure_continues():
     """Test that branch creation failure doesn't stop execution"""
@@ -267,6 +272,7 @@ async def test_branch_creation_failure_continues():
         assert result['success'] is True
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_checkout_failure():
     """Test that checkout failure raises exception"""
@@ -300,6 +306,7 @@ async def test_checkout_failure():
         assert 'Checkout failed' in result['error']
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_commit_failure():
     """Test that commit failure raises exception"""
@@ -339,6 +346,7 @@ async def test_commit_failure():
         assert 'Nothing to commit' in result['error']
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_push_files_failure():
     """Test that push_files failure raises exception"""
@@ -380,6 +388,7 @@ async def test_push_files_failure():
         assert 'Push rejected' in result['error']
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_pr_creation_failure():
     """Test that PR creation failure raises exception"""
@@ -422,6 +431,7 @@ async def test_pr_creation_failure():
         assert 'PR already exists' in result['error']
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_github_branch_creation_failure_continues():
     """Test that GitHub branch creation failure doesn't stop execution"""
@@ -465,6 +475,7 @@ async def test_github_branch_creation_failure_continues():
         assert result['pr_number'] == 5
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_multiple_files_staging():
     """Test staging multiple files"""
@@ -521,6 +532,7 @@ async def test_multiple_files_staging():
         assert len(add_calls) == 3
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_file_staging_with_error():
     """Test that file staging error is logged but doesn't stop execution"""
@@ -572,6 +584,7 @@ async def test_file_staging_with_error():
         assert result['success'] is True
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_windows_path_conversion():
     """Test that Windows paths are converted to forward slashes"""
@@ -619,6 +632,7 @@ async def test_windows_path_conversion():
         assert repo_path_arg == "C:/Users/test/repo"
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_custom_output_callback():
     """Test that custom output callback is used"""
@@ -669,6 +683,7 @@ async def test_custom_output_callback():
         assert any("DUAL MCP SERVER" in msg for msg in output_messages)
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_error_troubleshooting_messages():
     """Test that appropriate troubleshooting messages are added to errors"""
@@ -707,6 +722,7 @@ async def test_error_troubleshooting_messages():
             assert 'debug' in result  # Verify traceback is included
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_pr_url_parsing_variations():
     """Test parsing PR URLs with # number format"""
@@ -795,6 +811,7 @@ async def test_pr_url_parsing_variations():
         assert result2['pr_number'] == 0
 
 
+@pytest.mark.requires_mcp
 @pytest.mark.asyncio
 async def test_custom_base_branch():
     """Test using custom base branch instead of main"""
