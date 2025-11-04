@@ -624,17 +624,21 @@ class TestFixCommand:
 
         assert "No vulnerabilities found" in result.output
 
+    @patch('securefix.remediation.config.app_config')
     @patch('securefix.remediation.remediation_engine.RemediationEngine')
     @patch('securefix.remediation.corpus_builder.DocumentProcessor')
     @patch('securefix.remediation.llm.check_ollama_available')
     def test_fix_generates_remediations(self, mock_ollama_check, mock_proc_class,
-                                        mock_engine_class, runner, sample_report, tmp_path):
+                                        mock_engine_class, mock_app_config, runner, sample_report, tmp_path):
         """Should generate fixes for vulnerabilities"""
         persist_dir = tmp_path / "chroma_db"
         persist_dir.mkdir()
 
         # Mock availability checks
         mock_ollama_check.return_value = True
+
+        # Mock MCP configuration to disable PR prompts
+        mock_app_config.mcp.is_configured.return_value = False
 
         # Mock processor
         mock_processor = mock_proc_class.return_value
@@ -661,6 +665,12 @@ class TestFixCommand:
             '--llm-mode', 'local'
         ])
 
+        if result.exit_code != 0:
+            print(f"CLI Output: {result.output}")
+            if result.exception:
+                print(f"Exception: {result.exception}")
+                import traceback
+                traceback.print_exception(type(result.exception), result.exception, result.exception.__traceback__)
         assert result.exit_code == 0
         assert "Generating fixes" in result.output
         assert "Successfully remediated: 2" in result.output

@@ -3,8 +3,10 @@ Test that git MCP operations now work correctly with repo_path argument.
 """
 import asyncio
 import subprocess
+import pytest
 
 
+@pytest.mark.asyncio
 async def test_git_fixed():
     """Test git operations with proper repo_path"""
     print("="*70)

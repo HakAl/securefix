@@ -3,8 +3,10 @@ Simple MCP client test using the mcp library directly.
 """
 import asyncio
 import os
+import pytest
 
 
+@pytest.mark.asyncio
 async def test_git_server():
     """Test git MCP server connection"""
     print("\n" + "="*70)
@@ -47,6 +49,7 @@ async def test_git_server():
         return False
 
 
+@pytest.mark.asyncio
 async def test_github_server():
     """Test GitHub MCP server (Docker)"""
     print("\n" + "="*70)

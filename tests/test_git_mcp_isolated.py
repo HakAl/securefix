@@ -3,8 +3,10 @@ Test git MCP server operations in detail to see what's actually happening.
 """
 import asyncio
 import subprocess
+import pytest
 
 
+@pytest.mark.asyncio
 async def test_git_operations():
     """Test actual git operations via MCP"""
     print("="*70)

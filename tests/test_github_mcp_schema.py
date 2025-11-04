@@ -3,9 +3,11 @@ Check GitHub MCP server tool schemas.
 """
 import asyncio
 import os
+import pytest
 
 
-async def check_github_tools():
+@pytest.mark.asyncio
+async def test_check_github_tools():
     """Check GitHub MCP tools and their schemas"""
     print("="*70)
     print("GITHUB MCP SERVER TOOLS")
@@ -64,4 +66,4 @@ async def check_github_tools():
 
 
 if __name__ == "__main__":
-    asyncio.run(check_github_tools())
+    asyncio.run(test_check_github_tools())

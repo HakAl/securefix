@@ -4,8 +4,10 @@ Tests git and GitHub MCP servers independently.
 """
 import asyncio
 import os
+import pytest
 
 
+@pytest.mark.asyncio
 async def test_git_server():
     """Test connection to git MCP server"""
     print("\n" + "="*70)
@@ -42,6 +44,7 @@ async def test_git_server():
         return False
 
 
+@pytest.mark.asyncio
 async def test_github_server():
     """Test connection to GitHub MCP server (Docker)"""
     print("\n" + "="*70)

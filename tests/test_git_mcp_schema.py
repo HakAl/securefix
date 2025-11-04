@@ -2,9 +2,11 @@
 Check the schema/input requirements for git MCP server tools.
 """
 import asyncio
+import pytest
 
 
-async def check_tool_schemas():
+@pytest.mark.asyncio
+async def test_check_tool_schemas():
     """Check what arguments each tool expects"""
     print("="*70)
     print("GIT MCP SERVER TOOL SCHEMAS")
@@ -49,4 +51,4 @@ async def check_tool_schemas():
 
 
 if __name__ == "__main__":
-    asyncio.run(check_tool_schemas())
+    asyncio.run(test_check_tool_schemas())
