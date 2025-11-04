@@ -63,9 +63,14 @@ llamacpp = [
     "llama-cpp-python>=0.2.0",
 ]
 
+# MCP (Model Context Protocol) integration for GitHub PR automation
+mcp = [
+    "fastmcp>=0.2.0",
+]
+
 # All optional dependencies
 all = [
-    "securefix[dev,llamacpp]",
+    "securefix[dev,llamacpp,mcp]",
 ]
 
 [project.scripts]
@@ -99,6 +104,7 @@ markers = [
     "unit: marks tests as unit tests",
     "requires_nltk: marks tests that require NLTK data",
     "requires_api: marks tests that require API keys",
+    "requires_mcp: marks tests that require MCP server (github-mcp-server)",
 ]
 
 [tool.coverage.run]
